@@ -1,5 +1,9 @@
 #include <iostream>
 #include <vector>
+#include <SDL_video.h>
+#include <SDL_keyboard.h>
+#include <SDL_mouse.h>
+#include <SDL_events.h>
 #include <GL/glew.h>
 
 #include "openvr.h"
@@ -50,6 +54,27 @@ int main() {
         return -1;
     }
 
+    // Setup SDL & Monitor window
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 0);
+    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 0);
+
+    int windowPosX = 700;
+    int windowPosY = 100;
+    Uint32 unWindowFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN;
+    SDL_Window *monitorWindow = SDL_CreateWindow("hellovr", windowPosX, windowPosY, 800, 600, unWindowFlags);
+    if (monitorWindow == NULL) {
+        printf("%s - Window could not be created! SDL Error: %s\n", __FUNCTION__, SDL_GetError());
+        return false;
+    }
+    SDL_GLContext monitorGlContext = SDL_GL_CreateContext(monitorWindow);
+    if (monitorGlContext == NULL) {
+        printf("%s - OpenGL context could not be created! SDL Error: %s\n", __FUNCTION__, SDL_GetError());
+        return false;
+    }
+
     // Init glew
     glewExperimental = GL_TRUE;
     GLenum glewError = glewInit();
@@ -60,12 +85,34 @@ int main() {
     glGetError(); // to clear the error caused deep in GLEW
 
     // Main loop
+    SDL_StartTextInput();
+    SDL_ShowCursor(SDL_DISABLE);
     TrackedDevicePose_t devicePose[ k_unMaxTrackedDeviceCount ];
     Matrix4 devicePoseMat[ k_unMaxTrackedDeviceCount ];
     Matrix4 leftHandPose;
     Matrix4 rightHandPose;
     std::vector<float> floatAr;
     while(running) {
+        // SDL input
+        SDL_Event sdlEvent;
+        while (SDL_PollEvent(&sdlEvent) != 0) {
+            if (sdlEvent.type == SDL_QUIT) {
+                running = false;
+            } else if (sdlEvent.type == SDL_KEYDOWN) {
+                if (sdlEvent.key.keysym.sym == SDLK_ESCAPE || sdlEvent.key.keysym.sym == SDLK_q) {
+                    running = false;
+                }
+            }
+        }
+
+        // Process SteamVR events
+        vr::VREvent_t event;
+        while (hmd->PollNextEvent(&event, sizeof(event))) {
+            if(event.eventType == vr::VREvent_TrackedDeviceActivated) {
+                //initDeviceModel(event.trackedDeviceIndex);
+            }
+        }
+
         VRCompositor()->WaitGetPoses(devicePose, k_unMaxTrackedDeviceCount, NULL, 0);
 
         // Track devices
@@ -123,6 +170,7 @@ int main() {
         }
 
     }
+    SDL_StopTextInput();
 
     // Cleanup
     cout << "exit!\n";

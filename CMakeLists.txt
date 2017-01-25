@@ -20,6 +20,7 @@ include_directories(
         ${CMAKE_CURRENT_BINARY_DIR}/Resources
         ${OPENGL_INCLUDE_DIR}
         ${GLEW_INCLUDE_DIR}
+        ${SDL2_INCLUDE_DIR}
         ${OPENVR_INCLUDE_DIR}
 )
 
@@ -31,6 +32,7 @@ target_link_libraries(
         openvrtest
         ${OPENGL_LIBRARIES}
         GLEW::GLEW
+        SDL2::SDL2
         ${OPENVR_LIBRARY}
         ${CMAKE_DL_LIBS}
         )
