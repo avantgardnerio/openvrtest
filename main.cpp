@@ -1,8 +1,22 @@
 #include <iostream>
+#include <vector>
+#include <GL/glew.h>
 
 #include "openvr.h"
 
 #include "geom/Matrices.h"
+
+using std::cout;
+using std::vector;
+using vr::EVRInitError;
+using vr::IVRSystem;
+using vr::TrackedDevicePose_t;
+using vr::VRCompositor;
+using vr::VRInitError_None;
+using vr::VR_Init;
+using vr::VR_GetVRInitErrorAsEnglishDescription;
+using vr::VRApplication_Scene;
+using vr::k_unMaxTrackedDeviceCount;
 
 Matrix4 steamMatToMatrix4( const vr::HmdMatrix34_t &matPose ) {
     Matrix4 matrixObj(
@@ -25,46 +39,93 @@ int main() {
     signal(SIGINT, sig_handler);
 
     // Init HMD
-    vr::EVRInitError eError = vr::VRInitError_None;
-    vr::IVRSystem *hmd = vr::VR_Init(&eError, vr::VRApplication_Scene);
-    if (eError != vr::VRInitError_None) {
-        printf("Unable to init VR runtime: %s", vr::VR_GetVRInitErrorAsEnglishDescription(eError));
+    EVRInitError eError = VRInitError_None;
+    IVRSystem *hmd = VR_Init(&eError, VRApplication_Scene);
+    if (eError != VRInitError_None) {
+        printf("Unable to init VR runtime: %s", VR_GetVRInitErrorAsEnglishDescription(eError));
         return -1;
     }
-    if (!vr::VRCompositor()) {
+    if (!VRCompositor()) {
         printf("Compositor initialization failed. See log file for details\n", __FUNCTION__);
         return -1;
     }
 
+    // Init glew
+    glewExperimental = GL_TRUE;
+    GLenum glewError = glewInit();
+    if (glewError != GLEW_OK) {
+        printf("%s - Error initializing GLEW! %s\n", __FUNCTION__, glewGetErrorString(glewError));
+        return false;
+    }
+    glGetError(); // to clear the error caused deep in GLEW
+
     // Main loop
-    vr::TrackedDevicePose_t devicePose[ vr::k_unMaxTrackedDeviceCount ];
-    Matrix4 devicePoseMat[ vr::k_unMaxTrackedDeviceCount ];
+    TrackedDevicePose_t devicePose[ k_unMaxTrackedDeviceCount ];
+    Matrix4 devicePoseMat[ k_unMaxTrackedDeviceCount ];
     Matrix4 leftHandPose;
     Matrix4 rightHandPose;
+    std::vector<float> floatAr;
     while(running) {
-        vr::VRCompositor()->WaitGetPoses(devicePose, vr::k_unMaxTrackedDeviceCount, NULL, 0);
+        VRCompositor()->WaitGetPoses(devicePose, k_unMaxTrackedDeviceCount, NULL, 0);
+
+        // Track devices
         int hand = 0;
-        for (int deviceIdx = 0; deviceIdx < vr::k_unMaxTrackedDeviceCount; ++deviceIdx) {
-            if (!devicePose[deviceIdx].bPoseIsValid) {
+        for (int deviceIdx = 0; deviceIdx < k_unMaxTrackedDeviceCount; ++deviceIdx) {
+            const vr::TrackedDevicePose_t& pose = devicePose[deviceIdx];
+            if (!pose.bPoseIsValid) {
                 continue;
             }
-            devicePoseMat[deviceIdx] = steamMatToMatrix4(devicePose[deviceIdx].mDeviceToAbsoluteTracking);
-            if (hmd->GetTrackedDeviceClass(deviceIdx) == vr::TrackedDeviceClass_Controller) {
-                if (hand == 0) {
-                    rightHandPose = devicePoseMat[deviceIdx];
-                    std::cout << "right hand:\n" << rightHandPose;
-                }
-                if (hand == 1) {
-                    leftHandPose = devicePoseMat[deviceIdx];
-                    std::cout << "left hand:\n" << leftHandPose;
-                }
-                hand++;
-            }
+            Matrix4 poseMat = steamMatToMatrix4(pose.mDeviceToAbsoluteTracking);
+            devicePoseMat[deviceIdx] = poseMat;
+            const Matrix4 &mat = devicePoseMat[deviceIdx];
+
+            Vector4 start = mat * Vector4(0, 0, 0.0f, 1);
+            Vector4 end = mat * Vector4(0, 0, -39.f, 1);
+            Vector3 color(0, 0, 1);
+
+            floatAr.push_back(start.x); floatAr.push_back(start.y); floatAr.push_back(start.z);
+            floatAr.push_back(color.x); floatAr.push_back(color.y); floatAr.push_back(color.z);
+
+            floatAr.push_back(end.x); floatAr.push_back(end.y); floatAr.push_back(end.z);
+            floatAr.push_back(color.x); floatAr.push_back(color.y); floatAr.push_back(color.z);
         }
+
+        // Render devices
+        unsigned int controllerVertCount = floatAr.size() / 6;
+        GLuint controllerVertAr = 0;
+        GLuint controllerVertBuffer = 0;
+        if (controllerVertAr == 0) {
+            glGenVertexArrays(1, &controllerVertAr);
+            glBindVertexArray(controllerVertAr);
+
+            glGenBuffers(1, &controllerVertBuffer);
+            glBindBuffer(GL_ARRAY_BUFFER, controllerVertBuffer);
+
+            GLuint stride = 2 * 3 * sizeof(float);
+            GLuint offset = 0;
+
+            glEnableVertexAttribArray(0);
+            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (const void *)offset);
+
+            offset += sizeof(Vector3);
+            glEnableVertexAttribArray(1);
+            glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (const void *)offset);
+
+            glBindVertexArray(0);
+        }
+
+        glBindBuffer(GL_ARRAY_BUFFER, controllerVertBuffer);
+
+        // set vertex data if we have some
+        if (floatAr.size() > 0) {
+            //$ TODO: Use glBufferSubData for this...
+            glBufferData(GL_ARRAY_BUFFER, sizeof(float) * floatAr.size(), &floatAr[0], GL_STREAM_DRAW);
+        }
+
     }
 
     // Cleanup
-    std:: cout << "exit!\n";
+    cout << "exit!\n";
     if( hmd ) {
         vr::VR_Shutdown();
     }

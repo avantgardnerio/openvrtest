@@ -1,3 +1,4 @@
 include("${CMAKE_SOURCE_DIR}/.cget/core.cmake" REQUIRED)
 
 CGET_HAS_DEPENDENCY(openvr REGISTRY VERSION master)
+CGET_HAS_DEPENDENCY(glew NUGET_PACKAGE glew.${CGET_MSVC_RUNTIME} GITHUB nigels-com/glew VERSION glew-1.11.0)
