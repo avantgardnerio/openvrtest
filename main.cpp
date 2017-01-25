@@ -52,11 +52,11 @@ int main() {
             if (hmd->GetTrackedDeviceClass(deviceIdx) == vr::TrackedDeviceClass_Controller) {
                 if (hand == 0) {
                     rightHandPose = devicePoseMat[deviceIdx];
-                    std::cout << rightHandPose;
+                    std::cout << "right hand:\n" << rightHandPose;
                 }
                 if (hand == 1) {
                     leftHandPose = devicePoseMat[deviceIdx];
-                    std::cout << leftHandPose;
+                    std::cout << "left hand:\n" << leftHandPose;
                 }
                 hand++;
             }
@@ -64,7 +64,7 @@ int main() {
     }
 
     // Cleanup
-   std:: cout << "exit!\n";
+    std:: cout << "exit!\n";
     if( hmd ) {
         vr::VR_Shutdown();
     }
