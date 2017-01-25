@@ -25,13 +25,13 @@ include_directories(
 
 message("------------------------" ${OPENVR_LIBRARY})
 message("------------------------" ${GLEW_LIBRARY})
-message("------------------------" ${OPENGL_LIBRARIES})
+message("------------------------ ${OPENGL_LIBRARIES} ${CMAKE_DL_LIBS}")
 
-target_link_libraries(
-        openvrtest
+target_link_libraries( openvrtest
         ${OPENGL_LIBRARIES}
         GLEW::GLEW
+        SDL2::SDL2
         ${OPENVR_LIBRARY}
         ${CMAKE_DL_LIBS}
-        )
+)
 

@@ -1,3 +1,6 @@
+#define SDL_MAIN_HANDLED
+#include <SDL.h>
+
 #include <iostream>
 #include <vector>
 #include <GL/glew.h>
@@ -35,8 +38,36 @@ void sig_handler(int signum) {
     printf("Received signal %d\n", signum);
 }
 
+static bool initGl() {
+    int nWindowPosX = 700;
+    int nWindowPosY = 100;
+    Uint32 unWindowFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN;
+
+    SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, 4 );
+    SDL_GL_SetAttribute( SDL_GL_CONTEXT_MINOR_VERSION, 1 );
+    //SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY );
+    SDL_GL_SetAttribute( SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE );
+
+    SDL_GL_SetAttribute( SDL_GL_MULTISAMPLEBUFFERS, 0 );
+    SDL_GL_SetAttribute( SDL_GL_MULTISAMPLESAMPLES, 0 );
+    SDL_GL_SetAttribute( SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG );
+
+    auto m_pCompanionWindow = SDL_CreateWindow( "hellovr", nWindowPosX, nWindowPosY, 400, 400, unWindowFlags );
+    if (m_pCompanionWindow == NULL)
+    {
+        printf( "%s - Window could not be created! SDL Error: %s\n", __FUNCTION__, SDL_GetError() );
+        return false;
+    }
+
+    auto m_pContext = SDL_GL_CreateContext(m_pCompanionWindow);
+    return true;
+}
+
 int main() {
     signal(SIGINT, sig_handler);
+
+    if(!initGl())
+        return 0;
 
     // Init HMD
     EVRInitError eError = VRInitError_None;
