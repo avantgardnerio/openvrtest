@@ -14,7 +14,15 @@ Matrix4 steamMatToMatrix4( const vr::HmdMatrix34_t &matPose ) {
     return matrixObj;
 }
 
+bool running = true;
+
+void sig_handler(int signum) {
+    running = false;
+    printf("Received signal %d\n", signum);
+}
+
 int main() {
+    signal(SIGINT, sig_handler);
 
     // Init HMD
     vr::EVRInitError eError = vr::VRInitError_None;
@@ -33,7 +41,7 @@ int main() {
     Matrix4 devicePoseMat[ vr::k_unMaxTrackedDeviceCount ];
     Matrix4 leftHandPose;
     Matrix4 rightHandPose;
-    while(true) {
+    while(running) {
         vr::VRCompositor()->WaitGetPoses(devicePose, vr::k_unMaxTrackedDeviceCount, NULL, 0);
         int hand = 0;
         for (int deviceIdx = 0; deviceIdx < vr::k_unMaxTrackedDeviceCount; ++deviceIdx) {
@@ -55,6 +63,11 @@ int main() {
         }
     }
 
+    // Cleanup
+   std:: cout << "exit!\n";
+    if( hmd ) {
+        vr::VR_Shutdown();
+    }
+
     return 0;
 }
-
