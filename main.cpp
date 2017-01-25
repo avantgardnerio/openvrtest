@@ -39,6 +39,113 @@ void sig_handler(int signum) {
     printf("Received signal %d\n", signum);
 }
 
+struct VertexDataWindow {
+    Vector2 position;
+    Vector2 texCoord;
+
+    VertexDataWindow(const Vector2 & pos, const Vector2 tex) : position(pos), texCoord(tex) {	}
+};
+
+struct FramebufferDesc {
+    GLuint depthBufferId;
+    GLuint renderTextureId;
+    GLuint renderFramebufferId;
+    GLuint resolveTextureId;
+    GLuint resolveFramebufferId;
+};
+
+bool createFrameBuffer(int width, int height, FramebufferDesc &framebufferDesc) {
+    glGenFramebuffers(1, &framebufferDesc.renderFramebufferId);
+    glBindFramebuffer(GL_FRAMEBUFFER, framebufferDesc.renderFramebufferId);
+
+    glGenRenderbuffers(1, &framebufferDesc.depthBufferId);
+    glBindRenderbuffer(GL_RENDERBUFFER, framebufferDesc.depthBufferId);
+    glRenderbufferStorageMultisample(GL_RENDERBUFFER, 4, GL_DEPTH_COMPONENT, width, height);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, framebufferDesc.depthBufferId);
+
+    glGenTextures(1, &framebufferDesc.renderTextureId);
+    glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, framebufferDesc.renderTextureId);
+    glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, 4, GL_RGBA8, width, height, true);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, framebufferDesc.renderTextureId, 0);
+
+    glGenFramebuffers(1, &framebufferDesc.resolveFramebufferId);
+    glBindFramebuffer(GL_FRAMEBUFFER, framebufferDesc.resolveFramebufferId);
+
+    glGenTextures(1, &framebufferDesc.resolveTextureId);
+    glBindTexture(GL_TEXTURE_2D, framebufferDesc.resolveTextureId);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, framebufferDesc.resolveTextureId, 0);
+
+    // check FBO status
+    GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+    if (status != GL_FRAMEBUFFER_COMPLETE) {
+        return false;
+    }
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    return true;
+}
+
+GLuint compileGlShader( const char *pchShaderName, const char *pchVertexShader, const char *pchFragmentShader ) {
+    GLuint unProgramID = glCreateProgram();
+
+    GLuint nSceneVertexShader = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource( nSceneVertexShader, 1, &pchVertexShader, NULL);
+    glCompileShader( nSceneVertexShader );
+
+    GLint vShaderCompiled = GL_FALSE;
+    glGetShaderiv( nSceneVertexShader, GL_COMPILE_STATUS, &vShaderCompiled);
+    if ( vShaderCompiled != GL_TRUE)
+    {
+        char buffer[1024];
+        GLsizei  len = 0;
+        glGetShaderInfoLog(nSceneVertexShader, 1024, &len, buffer);
+        printf("%s - Unable to compile vertex shader %d!\n %s \n", pchShaderName, nSceneVertexShader, buffer);
+        glDeleteProgram( unProgramID );
+        glDeleteShader( nSceneVertexShader );
+        return 0;
+    }
+    glAttachShader( unProgramID, nSceneVertexShader);
+    glDeleteShader( nSceneVertexShader ); // the program hangs onto this once it's attached
+
+    GLuint  nSceneFragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource( nSceneFragmentShader, 1, &pchFragmentShader, NULL);
+    glCompileShader( nSceneFragmentShader );
+
+    GLint fShaderCompiled = GL_FALSE;
+    glGetShaderiv( nSceneFragmentShader, GL_COMPILE_STATUS, &fShaderCompiled);
+    if (fShaderCompiled != GL_TRUE) {
+        char buffer[1024];
+        GLsizei  len = 0;
+        glGetShaderInfoLog(nSceneFragmentShader, 1024, &len, buffer);
+        printf("%s - Unable to compile fragment shader %d!\n %s \n", pchShaderName, nSceneFragmentShader, buffer );
+        glDeleteProgram( unProgramID );
+        glDeleteShader( nSceneFragmentShader );
+        return 0;
+    }
+
+    glAttachShader( unProgramID, nSceneFragmentShader );
+    glDeleteShader( nSceneFragmentShader ); // the program hangs onto this once it's attached
+
+    glLinkProgram( unProgramID );
+
+    GLint programSuccess = GL_TRUE;
+    glGetProgramiv( unProgramID, GL_LINK_STATUS, &programSuccess);
+    if ( programSuccess != GL_TRUE ) {
+        printf("%s - Error linking program %d!\n", pchShaderName, unProgramID);
+        glDeleteProgram( unProgramID );
+        return 0;
+    }
+
+    glUseProgram( unProgramID );
+    glUseProgram( 0 );
+
+    return unProgramID;
+}
+
 int main() {
     signal(SIGINT, sig_handler);
 
@@ -49,6 +156,8 @@ int main() {
         printf("Unable to init VR runtime: %s", VR_GetVRInitErrorAsEnglishDescription(eError));
         return -1;
     }
+
+    // Init VRCompositor
     if (!VRCompositor()) {
         printf("Compositor initialization failed. See log file for details\n", __FUNCTION__);
         return -1;
@@ -63,8 +172,10 @@ int main() {
 
     int windowPosX = 700;
     int windowPosY = 100;
+    int monitorWinWidth = 800;
+    int monitorWinHeight = 600;
     Uint32 unWindowFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN;
-    SDL_Window *monitorWindow = SDL_CreateWindow("hellovr", windowPosX, windowPosY, 800, 600, unWindowFlags);
+    SDL_Window *monitorWindow = SDL_CreateWindow("hellovr", windowPosX, windowPosY, monitorWinWidth, monitorWinHeight, unWindowFlags);
     if (monitorWindow == NULL) {
         printf("%s - Window could not be created! SDL Error: %s\n", __FUNCTION__, SDL_GetError());
         return false;
@@ -83,6 +194,82 @@ int main() {
         return false;
     }
     glGetError(); // to clear the error caused deep in GLEW
+
+    // Init GL
+    GLuint monitorWindowShader = compileGlShader(
+            "MonitorWindow",
+            "#version 410 core\n"
+                    "\n"
+                    "layout(location = 0) in vec4 position;\n"
+                    "layout(location = 1) in vec2 v2UVIn;\n"
+                    "noperspective out vec2 v2UV;\n"
+                    "void main() {\n"
+                    "\tv2UV = v2UVIn;\n"
+                    "\tgl_Position = position;\n"
+                    "}",
+            "#version 410 core\n"
+                    "\n"
+                    "uniform sampler2D mytexture;\n"
+                    "noperspective in vec2 v2UV;\n"
+                    "out vec4 outputColor;\n"
+                    "void main() {\n"
+                    "\t\toutputColor = texture(mytexture, v2UV);\n"
+                    "}");
+
+    std::vector<VertexDataWindow> verts;
+
+    // left eye verts
+    verts.push_back(VertexDataWindow(Vector2(-1, -1), Vector2(0, 1)));
+    verts.push_back(VertexDataWindow(Vector2(0, -1), Vector2(1, 1)));
+    verts.push_back(VertexDataWindow(Vector2(-1, 1), Vector2(0, 0)));
+    verts.push_back(VertexDataWindow(Vector2(0, 1), Vector2(1, 0)));
+
+    // right eye verts
+    verts.push_back(VertexDataWindow(Vector2(0, -1), Vector2(0, 1)));
+    verts.push_back(VertexDataWindow(Vector2(1, -1), Vector2(1, 1)));
+    verts.push_back(VertexDataWindow(Vector2(0, 1), Vector2(0, 0)));
+    verts.push_back(VertexDataWindow(Vector2(1, 1), Vector2(1, 0)));
+
+    GLushort indices[] = { 0, 1, 3,   0, 3, 2,   4, 5, 7,   4, 7, 6 };
+    unsigned int monitorWinIdxSize = _countof(indices);
+
+    GLuint monitorWinVertAr = 0;
+    GLuint monitorWinVertBuff = 0;
+    GLuint monitorWinIdxBuff = 0;
+    glGenVertexArrays(1, &monitorWinVertAr);
+    glBindVertexArray(monitorWinVertAr);
+
+    glGenBuffers(1, &monitorWinVertBuff);
+    glBindBuffer(GL_ARRAY_BUFFER, monitorWinVertBuff);
+    glBufferData(GL_ARRAY_BUFFER, verts.size() * sizeof(VertexDataWindow), &verts[0], GL_STATIC_DRAW);
+
+    glGenBuffers(1, &monitorWinIdxBuff);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, monitorWinIdxBuff);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, monitorWinIdxSize * sizeof(GLushort), &indices[0], GL_STATIC_DRAW);
+
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(VertexDataWindow), (void *)offsetof(VertexDataWindow, position));
+
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(VertexDataWindow), (void *)offsetof(VertexDataWindow, texCoord));
+
+    glBindVertexArray(0);
+
+    glDisableVertexAttribArray(0);
+    glDisableVertexAttribArray(1);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+
+    uint32_t hmdRenderWidth;
+    uint32_t hmdRenderHeight;
+    hmd->GetRecommendedRenderTargetSize(&hmdRenderWidth, &hmdRenderHeight);
+
+    FramebufferDesc leftEyeDesc;
+    FramebufferDesc rightEyeDesc;
+    createFrameBuffer(hmdRenderWidth, hmdRenderHeight, leftEyeDesc);
+    createFrameBuffer(hmdRenderWidth, hmdRenderHeight, rightEyeDesc);
 
     // Main loop
     SDL_StartTextInput();
@@ -169,6 +356,39 @@ int main() {
             glBufferData(GL_ARRAY_BUFFER, sizeof(float) * floatAr.size(), &floatAr[0], GL_STREAM_DRAW);
         }
 
+        // Render to monitor window
+        glDisable(GL_DEPTH_TEST);
+        glViewport(0, 0, monitorWinWidth, monitorWinHeight);
+
+        glBindVertexArray(monitorWinVertAr);
+        glUseProgram(monitorWindowShader);
+
+        // render left eye (first half of index array )
+        glBindTexture(GL_TEXTURE_2D, leftEyeDesc.resolveTextureId);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glDrawElements(GL_TRIANGLES, monitorWinIdxSize / 2, GL_UNSIGNED_SHORT, 0);
+
+        // render right eye (second half of index array )
+        glBindTexture(GL_TEXTURE_2D, rightEyeDesc.resolveTextureId);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glDrawElements(GL_TRIANGLES, monitorWinIdxSize / 2, GL_UNSIGNED_SHORT, (const void *)(monitorWinIdxSize));
+
+        glBindVertexArray(0);
+        glUseProgram(0);
+
+        // Swap
+        SDL_GL_SwapWindow(monitorWindow);
+
+        // We want to make sure the glFinish waits for the entire present to complete, not just the submission
+        // of the command. So, we do a clear here right here so the glFinish will wait fully for the swap.
+        glClearColor(0, 0, 0, 1);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     }
     SDL_StopTextInput();
 
