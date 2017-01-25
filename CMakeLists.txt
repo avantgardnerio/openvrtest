@@ -9,9 +9,18 @@ set(SOURCE_FILES main.cpp)
 
 add_executable(openvrtest ${SOURCE_FILES})
 
-include_directories(${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_BINARY_DIR}/Resources )
+include_directories(
+        .
+        ${CMAKE_CURRENT_BINARY_DIR}
+        ${CMAKE_CURRENT_BINARY_DIR}/Resources
+        ${OPENVR_INCLUDE_DIR}
+)
 
-target_link_libraries( openvrtest
+message(${OPENVR_LIBRARY})
+#message(${CGET_ARCH})
+
+target_link_libraries(
+        openvrtest
         ${OPENVR_LIBRARY}
         ${CMAKE_DL_LIBS}
         )
