@@ -10,17 +10,8 @@
 
 #include "geom/Matrices.h"
 
-using std::cout;
-using std::vector;
-using vr::EVRInitError;
-using vr::IVRSystem;
-using vr::TrackedDevicePose_t;
-using vr::VRCompositor;
-using vr::VRInitError_None;
-using vr::VR_Init;
-using vr::VR_GetVRInitErrorAsEnglishDescription;
-using vr::VRApplication_Scene;
-using vr::k_unMaxTrackedDeviceCount;
+using namespace std;
+using namespace vr;
 
 Matrix4 steamMatToMatrix4( const vr::HmdMatrix34_t &matPose ) {
     Matrix4 matrixObj(
@@ -156,6 +147,9 @@ int main() {
         printf("Unable to init VR runtime: %s", VR_GetVRInitErrorAsEnglishDescription(eError));
         return -1;
     }
+    uint32_t hmdRenderWidth;
+    uint32_t hmdRenderHeight;
+    hmd->GetRecommendedRenderTargetSize(&hmdRenderWidth, &hmdRenderHeight);
 
     // Init VRCompositor
     if (!VRCompositor()) {
@@ -170,10 +164,39 @@ int main() {
     SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 0);
     SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 0);
 
-    int windowPosX = 700;
-    int windowPosY = 100;
-    int monitorWinWidth = 800;
-    int monitorWinHeight = 600;
+    if (SDL_VideoInit(NULL) != 0) {
+        printf("Error initializing SDL video:  %s\n", SDL_GetError());
+        return 2;
+    }
+
+    SDL_Rect r;
+    if (SDL_GetDisplayBounds(0, &r) != 0) {
+        printf("SDL_GetDisplayBounds failed: %s", SDL_GetError());
+        return 1;
+    }
+
+    // Get current display mode of all displays.
+    int minW = INT_MAX;
+    int minH = INT_MAX;
+    SDL_DisplayMode current;
+    for(int i = 0; i < SDL_GetNumVideoDisplays(); ++i){
+        int should_be_zero = SDL_GetCurrentDisplayMode(i, &current);
+        if(should_be_zero != 0) {
+            printf("Could not get display mode for video display #%d: %s", i, SDL_GetError());
+        } else {
+            minW = min(current.w, minW);
+            minH = min(current.h, minH);
+            printf("Display #%d: current display mode is %dx%dpx @ %dhz.", i, current.w, current.h, current.refresh_rate);
+        }
+    }
+
+    float width = (float)minW / hmdRenderWidth;
+    float height = (float)minH / hmdRenderHeight;
+    float scale = min(width, height) * 0.8f;
+    int monitorWinWidth = (int)(hmdRenderWidth * scale);
+    int monitorWinHeight = (int)(hmdRenderHeight * scale);
+    int windowPosX = (minW - monitorWinWidth) / 2;
+    int windowPosY = (minH - monitorWinHeight) / 2;
     Uint32 unWindowFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN;
     SDL_Window *monitorWindow = SDL_CreateWindow("hellovr", windowPosX, windowPosY, monitorWinWidth, monitorWinHeight, unWindowFlags);
     if (monitorWindow == NULL) {
@@ -279,11 +302,6 @@ int main() {
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-
-
-    uint32_t hmdRenderWidth;
-    uint32_t hmdRenderHeight;
-    hmd->GetRecommendedRenderTargetSize(&hmdRenderWidth, &hmdRenderHeight);
 
     FramebufferDesc leftEyeDesc;
     FramebufferDesc rightEyeDesc;
