@@ -147,9 +147,9 @@ int main() {
         printf("Unable to init VR runtime: %s", VR_GetVRInitErrorAsEnglishDescription(eError));
         return -1;
     }
-    uint32_t hmdRenderWidth;
-    uint32_t hmdRenderHeight;
-    hmd->GetRecommendedRenderTargetSize(&hmdRenderWidth, &hmdRenderHeight);
+    uint32_t hmdWidth;
+    uint32_t hmdHeight;
+    hmd->GetRecommendedRenderTargetSize(&hmdWidth, &hmdHeight);
     if (!VRCompositor()) {
         printf("Compositor initialization failed. See log file for details\n", __FUNCTION__);
         return -1;
@@ -179,15 +179,15 @@ int main() {
             printf("Display #%d: current display mode is %dx%dpx @ %dhz.", i, current.w, current.h, current.refresh_rate);
         }
     }
-    float width = (float)minW / hmdRenderWidth;
-    float height = (float)minH / hmdRenderHeight;
+    float width = (float)minW / hmdWidth;
+    float height = (float)minH / hmdHeight;
     float scale = min(width, height) * 0.8f;
-    int monitorWinWidth = (int)(hmdRenderWidth * scale);
-    int monitorWinHeight = (int)(hmdRenderHeight * scale);
-    int windowPosX = (minW - monitorWinWidth) / 2;
-    int windowPosY = (minH - monitorWinHeight) / 2;
+    int windowWidth = (int)(hmdWidth * scale);
+    int windowHeight = (int)(hmdHeight * scale);
+    int windowPosX = (minW - windowWidth) / 2;
+    int windowPosY = (minH - windowHeight) / 2;
     Uint32 unWindowFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN;
-    SDL_Window *monitorWindow = SDL_CreateWindow("hellovr", windowPosX, windowPosY, monitorWinWidth, monitorWinHeight, unWindowFlags);
+    SDL_Window *monitorWindow = SDL_CreateWindow("hellovr", windowPosX, windowPosY, windowWidth, windowHeight, unWindowFlags);
     if (monitorWindow == NULL) {
         printf("%s - Window could not be created! SDL Error: %s\n", __FUNCTION__, SDL_GetError());
         return false;
@@ -228,7 +228,7 @@ int main() {
                     "   outputColor = v4Color;\n"
                     "}"
     );
-    GLuint monitorWindowShader = compileGlShader(
+    GLuint windowShader = compileGlShader(
             "MonitorWindow",
             "#version 410 core\n"
                     "\n"
@@ -261,13 +261,13 @@ int main() {
     verts.push_back(VertexDataWindow(Vector2(1, 1), Vector2(1, 0)));
 
     GLushort indices[] = { 0, 1, 3,   0, 3, 2};
-    unsigned int monitorWinIdxSize = _countof(indices);
+    unsigned int windowQuadIdxSize = _countof(indices);
 
-    GLuint monitorWinVertAr = 0;
+    GLuint windowQuadVertAr = 0;
     GLuint monitorWinVertBuff = 0;
     GLuint monitorWinIdxBuff = 0;
-    glGenVertexArrays(1, &monitorWinVertAr);
-    glBindVertexArray(monitorWinVertAr);
+    glGenVertexArrays(1, &windowQuadVertAr);
+    glBindVertexArray(windowQuadVertAr);
 
     glGenBuffers(1, &monitorWinVertBuff);
     glBindBuffer(GL_ARRAY_BUFFER, monitorWinVertBuff);
@@ -275,7 +275,7 @@ int main() {
 
     glGenBuffers(1, &monitorWinIdxBuff);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, monitorWinIdxBuff);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, monitorWinIdxSize * sizeof(GLushort), &indices[0], GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, windowQuadIdxSize * sizeof(GLushort), &indices[0], GL_STATIC_DRAW);
 
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(VertexDataWindow), (void *)offsetof(VertexDataWindow, position));
@@ -294,8 +294,8 @@ int main() {
     // HMD frame buffers
     FramebufferDesc leftEyeDesc;
     FramebufferDesc rightEyeDesc;
-    createFrameBuffer(hmdRenderWidth, hmdRenderHeight, leftEyeDesc);
-    createFrameBuffer(hmdRenderWidth, hmdRenderHeight, rightEyeDesc);
+    createFrameBuffer(hmdWidth, hmdHeight, leftEyeDesc);
+    createFrameBuffer(hmdWidth, hmdHeight, rightEyeDesc);
 
     // Main loop
     SDL_StartTextInput();
@@ -342,10 +342,10 @@ int main() {
             Vector4 end = mat * Vector4(0, 0, -39.f, 1);
             Vector3 color(1, 1, 1);
 
-            floatAr.push_back(-0.9); floatAr.push_back(-0.9); floatAr.push_back(0.5);
+            floatAr.push_back(-0.9f); floatAr.push_back(-0.9f); floatAr.push_back(0.5f);
             floatAr.push_back(color.x); floatAr.push_back(color.y); floatAr.push_back(color.z);
 
-            floatAr.push_back(0.9); floatAr.push_back(0.9); floatAr.push_back(0.5);
+            floatAr.push_back(0.9f); floatAr.push_back(0.9f); floatAr.push_back(0.5f);
             floatAr.push_back(color.x); floatAr.push_back(color.y); floatAr.push_back(color.z);
         }
 
@@ -386,7 +386,7 @@ int main() {
 
         // Left Eye
         glBindFramebuffer(GL_FRAMEBUFFER, leftEyeDesc.renderFramebufferId);
-        glViewport(0, 0, hmdRenderWidth, hmdRenderHeight);
+        glViewport(0, 0, hmdWidth, hmdHeight);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glEnable(GL_DEPTH_TEST);
 
@@ -407,7 +407,7 @@ int main() {
         glBindFramebuffer(GL_READ_FRAMEBUFFER, leftEyeDesc.renderFramebufferId);
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, leftEyeDesc.resolveFramebufferId);
 
-        glBlitFramebuffer(0, 0, hmdRenderWidth, hmdRenderHeight, 0, 0, hmdRenderWidth, hmdRenderHeight, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+        glBlitFramebuffer(0, 0, hmdWidth, hmdHeight, 0, 0, hmdWidth, hmdHeight, GL_COLOR_BUFFER_BIT, GL_LINEAR);
 
         glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
@@ -416,18 +416,18 @@ int main() {
 
         // Render to monitor window
         glDisable(GL_DEPTH_TEST);
-        glViewport(0, 0, monitorWinWidth, monitorWinHeight);
+        glViewport(0, 0, windowWidth, windowHeight);
 
-        glBindVertexArray(monitorWinVertAr);
-        glUseProgram(monitorWindowShader);
+        glBindVertexArray(windowQuadVertAr);
+        glUseProgram(windowShader);
 
-        // render left eye (first half of index array )
+        // render left eye
         glBindTexture(GL_TEXTURE_2D, leftEyeDesc.resolveTextureId);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glDrawElements(GL_TRIANGLES, monitorWinIdxSize, GL_UNSIGNED_SHORT, 0);
+        glDrawElements(GL_TRIANGLES, windowQuadIdxSize, GL_UNSIGNED_SHORT, 0);
 
         glBindVertexArray(0);
         glUseProgram(0);
