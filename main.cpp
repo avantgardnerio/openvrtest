@@ -150,14 +150,12 @@ int main() {
     uint32_t hmdRenderWidth;
     uint32_t hmdRenderHeight;
     hmd->GetRecommendedRenderTargetSize(&hmdRenderWidth, &hmdRenderHeight);
-
-    // Init VRCompositor
     if (!VRCompositor()) {
         printf("Compositor initialization failed. See log file for details\n", __FUNCTION__);
         return -1;
     }
 
-    // Setup SDL & Monitor window
+    // Setup SDL
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
@@ -168,14 +166,6 @@ int main() {
         printf("Error initializing SDL video:  %s\n", SDL_GetError());
         return 2;
     }
-
-    SDL_Rect r;
-    if (SDL_GetDisplayBounds(0, &r) != 0) {
-        printf("SDL_GetDisplayBounds failed: %s", SDL_GetError());
-        return 1;
-    }
-
-    // Get current display mode of all displays.
     int minW = INT_MAX;
     int minH = INT_MAX;
     SDL_DisplayMode current;
@@ -189,7 +179,6 @@ int main() {
             printf("Display #%d: current display mode is %dx%dpx @ %dhz.", i, current.w, current.h, current.refresh_rate);
         }
     }
-
     float width = (float)minW / hmdRenderWidth;
     float height = (float)minH / hmdRenderHeight;
     float scale = min(width, height) * 0.8f;
@@ -264,9 +253,8 @@ int main() {
         return false;
     }
 
+    // Monitor window quad
     std::vector<VertexDataWindow> verts;
-
-    // left eye verts
     verts.push_back(VertexDataWindow(Vector2(-1, -1), Vector2(0, 1)));
     verts.push_back(VertexDataWindow(Vector2(1, -1), Vector2(1, 1)));
     verts.push_back(VertexDataWindow(Vector2(-1, 1), Vector2(0, 0)));
@@ -303,6 +291,7 @@ int main() {
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
+    // HMD frame buffers
     FramebufferDesc leftEyeDesc;
     FramebufferDesc rightEyeDesc;
     createFrameBuffer(hmdRenderWidth, hmdRenderHeight, leftEyeDesc);
@@ -315,7 +304,6 @@ int main() {
     Matrix4 devicePoseMat[ k_unMaxTrackedDeviceCount ];
     Matrix4 leftHandPose;
     Matrix4 rightHandPose;
-    std::vector<float> floatAr;
     while(running) {
         // SDL input
         SDL_Event sdlEvent;
@@ -341,6 +329,7 @@ int main() {
 
         // Track devices
         int hand = 0;
+        std::vector<float> floatAr;
         for (int deviceIdx = 0; deviceIdx < k_unMaxTrackedDeviceCount; ++deviceIdx) {
             const vr::TrackedDevicePose_t& pose = devicePose[deviceIdx];
             if (!pose.bPoseIsValid) {
