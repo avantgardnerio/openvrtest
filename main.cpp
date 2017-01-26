@@ -299,7 +299,6 @@ int main() {
 
     // Main loop
     SDL_StartTextInput();
-    SDL_ShowCursor(SDL_DISABLE);
     TrackedDevicePose_t devicePose[ k_unMaxTrackedDeviceCount ];
     Matrix4 devicePoseMat[ k_unMaxTrackedDeviceCount ];
     Matrix4 leftHandPose;
