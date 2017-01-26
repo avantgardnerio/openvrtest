@@ -245,17 +245,11 @@ int main() {
 
     // left eye verts
     verts.push_back(VertexDataWindow(Vector2(-1, -1), Vector2(0, 1)));
-    verts.push_back(VertexDataWindow(Vector2(0, -1), Vector2(1, 1)));
-    verts.push_back(VertexDataWindow(Vector2(-1, 1), Vector2(0, 0)));
-    verts.push_back(VertexDataWindow(Vector2(0, 1), Vector2(1, 0)));
-
-    // right eye verts
-    verts.push_back(VertexDataWindow(Vector2(0, -1), Vector2(0, 1)));
     verts.push_back(VertexDataWindow(Vector2(1, -1), Vector2(1, 1)));
-    verts.push_back(VertexDataWindow(Vector2(0, 1), Vector2(0, 0)));
+    verts.push_back(VertexDataWindow(Vector2(-1, 1), Vector2(0, 0)));
     verts.push_back(VertexDataWindow(Vector2(1, 1), Vector2(1, 0)));
 
-    GLushort indices[] = { 0, 1, 3,   0, 3, 2,   4, 5, 7,   4, 7, 6 };
+    GLushort indices[] = { 0, 1, 3,   0, 3, 2};
     unsigned int monitorWinIdxSize = _countof(indices);
 
     GLuint monitorWinVertAr = 0;
@@ -340,9 +334,9 @@ int main() {
 
             Vector4 start = mat * Vector4(0, 0, 0.0f, 1);
             Vector4 end = mat * Vector4(0, 0, -39.f, 1);
-            Vector3 color(0, 0, 1);
+            Vector3 color(1, 1, 1);
 
-            floatAr.push_back(0.1); floatAr.push_back(0.1); floatAr.push_back(0.5);
+            floatAr.push_back(-0.9); floatAr.push_back(-0.9); floatAr.push_back(0.5);
             floatAr.push_back(color.x); floatAr.push_back(color.y); floatAr.push_back(color.z);
 
             floatAr.push_back(0.9); floatAr.push_back(0.9); floatAr.push_back(0.5);
@@ -427,15 +421,7 @@ int main() {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glDrawElements(GL_TRIANGLES, monitorWinIdxSize / 2, GL_UNSIGNED_SHORT, 0);
-
-        // render right eye (second half of index array )
-        glBindTexture(GL_TEXTURE_2D, rightEyeDesc.resolveTextureId);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glDrawElements(GL_TRIANGLES, monitorWinIdxSize / 2, GL_UNSIGNED_SHORT, (const void *)(monitorWinIdxSize));
+        glDrawElements(GL_TRIANGLES, monitorWinIdxSize, GL_UNSIGNED_SHORT, 0);
 
         glBindVertexArray(0);
         glUseProgram(0);
