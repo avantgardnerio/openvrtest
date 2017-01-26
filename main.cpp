@@ -196,6 +196,26 @@ int main() {
     glGetError(); // to clear the error caused deep in GLEW
 
     // Init GL
+    GLuint controllerShader = compileGlShader(
+            "ControllerShader",
+            "#version 410\n"
+                    "\n"
+                    "uniform mat4 matrix;\n"
+                    "layout(location = 0) in vec4 position;\n"
+                    "layout(location = 1) in vec3 v3ColorIn;\n"
+                    "out vec4 v4Color;\n"
+                    "void main() {\n"
+                    "\tv4Color.xyz = v3ColorIn; v4Color.a = 1.0;\n"
+                    "\tgl_Position = matrix * position;\n"
+                    "}",
+            "#version 410\n"
+                    "\n"
+                    "in vec4 v4Color;\n"
+                    "out vec4 outputColor;\n"
+                    "void main() {\n"
+                    "   outputColor = v4Color;\n"
+                    "}"
+    );
     GLuint monitorWindowShader = compileGlShader(
             "MonitorWindow",
             "#version 410 core\n"
@@ -215,6 +235,11 @@ int main() {
                     "void main() {\n"
                     "\t\toutputColor = texture(mytexture, v2UV);\n"
                     "}");
+    GLint controllerShaderMatrix = glGetUniformLocation(controllerShader, "matrix");
+    if (controllerShaderMatrix == -1) {
+        printf("Unable to find matrix uniform in controller shader\n");
+        return false;
+    }
 
     std::vector<VertexDataWindow> verts;
 
@@ -317,10 +342,10 @@ int main() {
             Vector4 end = mat * Vector4(0, 0, -39.f, 1);
             Vector3 color(0, 0, 1);
 
-            floatAr.push_back(start.x); floatAr.push_back(start.y); floatAr.push_back(start.z);
+            floatAr.push_back(0.1); floatAr.push_back(0.1); floatAr.push_back(0.5);
             floatAr.push_back(color.x); floatAr.push_back(color.y); floatAr.push_back(color.z);
 
-            floatAr.push_back(end.x); floatAr.push_back(end.y); floatAr.push_back(end.z);
+            floatAr.push_back(0.9); floatAr.push_back(0.9); floatAr.push_back(0.5);
             floatAr.push_back(color.x); floatAr.push_back(color.y); floatAr.push_back(color.z);
         }
 
@@ -355,6 +380,39 @@ int main() {
             //$ TODO: Use glBufferSubData for this...
             glBufferData(GL_ARRAY_BUFFER, sizeof(float) * floatAr.size(), &floatAr[0], GL_STREAM_DRAW);
         }
+
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glEnable(GL_MULTISAMPLE);
+
+        // Left Eye
+        glBindFramebuffer(GL_FRAMEBUFFER, leftEyeDesc.renderFramebufferId);
+        glViewport(0, 0, hmdRenderWidth, hmdRenderHeight);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glEnable(GL_DEPTH_TEST);
+
+        Matrix4 trans;
+
+        // Axises
+        glUseProgram(controllerShader);
+        glUniformMatrix4fv(controllerShaderMatrix, 1, GL_FALSE, trans.get());
+        glBindVertexArray(controllerVertAr);
+        glDrawArrays(GL_LINES, 0, controllerVertCount);
+        glBindVertexArray(0);
+
+        glUseProgram(0);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        glDisable(GL_MULTISAMPLE);
+
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, leftEyeDesc.renderFramebufferId);
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, leftEyeDesc.resolveFramebufferId);
+
+        glBlitFramebuffer(0, 0, hmdRenderWidth, hmdRenderHeight, 0, 0, hmdRenderWidth, hmdRenderHeight, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+
+        glEnable(GL_MULTISAMPLE);
 
         // Render to monitor window
         glDisable(GL_DEPTH_TEST);
