@@ -45,6 +45,9 @@ struct FramebufferDesc {
     GLuint resolveFramebufferId;
 };
 
+void renderPerspective(uint32_t hmdWidth, uint32_t hmdHeight, GLuint controllerShader, GLint controllerShaderMatrix,
+                       const FramebufferDesc &leftEyeDesc, unsigned int controllerVertCount, GLuint controllerVertAr);
+
 bool createFrameBuffer(int width, int height, FramebufferDesc &framebufferDesc) {
     glGenFramebuffers(1, &framebufferDesc.renderFramebufferId);
     glBindFramebuffer(GL_FRAMEBUFFER, framebufferDesc.renderFramebufferId);
@@ -349,7 +352,7 @@ int main() {
             floatAr.push_back(color.x); floatAr.push_back(color.y); floatAr.push_back(color.z);
         }
 
-        // Render devices
+        // Generate VBs for devices
         unsigned int controllerVertCount = floatAr.size() / 6;
         GLuint controllerVertAr = 0;
         GLuint controllerVertBuffer = 0;
@@ -374,63 +377,37 @@ int main() {
         }
 
         glBindBuffer(GL_ARRAY_BUFFER, controllerVertBuffer);
-
-        // set vertex data if we have some
         if (floatAr.size() > 0) {
-            //$ TODO: Use glBufferSubData for this...
             glBufferData(GL_ARRAY_BUFFER, sizeof(float) * floatAr.size(), &floatAr[0], GL_STREAM_DRAW);
         }
 
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-        glEnable(GL_MULTISAMPLE);
 
-        // Left Eye
-        glBindFramebuffer(GL_FRAMEBUFFER, leftEyeDesc.renderFramebufferId);
-        glViewport(0, 0, hmdWidth, hmdHeight);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glEnable(GL_DEPTH_TEST);
-
-        Matrix4 trans;
-
-        // Axises
-        glUseProgram(controllerShader);
-        glUniformMatrix4fv(controllerShaderMatrix, 1, GL_FALSE, trans.get());
-        glBindVertexArray(controllerVertAr);
-        glDrawArrays(GL_LINES, 0, controllerVertCount);
-        glBindVertexArray(0);
-
-        glUseProgram(0);
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-        glDisable(GL_MULTISAMPLE);
-
-        glBindFramebuffer(GL_READ_FRAMEBUFFER, leftEyeDesc.renderFramebufferId);
-        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, leftEyeDesc.resolveFramebufferId);
-
-        glBlitFramebuffer(0, 0, hmdWidth, hmdHeight, 0, 0, hmdWidth, hmdHeight, GL_COLOR_BUFFER_BIT, GL_LINEAR);
-
-        glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
-        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-
-        glEnable(GL_MULTISAMPLE);
+        // Render each perspective
+        renderPerspective(hmdWidth, hmdHeight, controllerShader, controllerShaderMatrix, leftEyeDesc,
+                          controllerVertCount, controllerVertAr);
+        renderPerspective(hmdWidth, hmdHeight, controllerShader, controllerShaderMatrix, rightEyeDesc,
+                          controllerVertCount, controllerVertAr);
 
         // Render to monitor window
         glDisable(GL_DEPTH_TEST);
         glViewport(0, 0, windowWidth, windowHeight);
-
         glBindVertexArray(windowQuadVertAr);
         glUseProgram(windowShader);
-
-        // render left eye
         glBindTexture(GL_TEXTURE_2D, leftEyeDesc.resolveTextureId);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glDrawElements(GL_TRIANGLES, windowQuadIdxSize, GL_UNSIGNED_SHORT, 0);
-
         glBindVertexArray(0);
         glUseProgram(0);
+
+        // Submit to HMD
+        vr::Texture_t leftEyeTexture = { (void*)leftEyeDesc.resolveTextureId, vr::TextureType_OpenGL, vr::ColorSpace_Gamma };
+        vr::VRCompositor()->Submit(vr::Eye_Left, &leftEyeTexture);
+        vr::Texture_t rightEyeTexture = { (void*)rightEyeDesc.resolveTextureId, vr::TextureType_OpenGL, vr::ColorSpace_Gamma };
+        vr::VRCompositor()->Submit(vr::Eye_Right, &rightEyeTexture);
 
         // Swap
         SDL_GL_SwapWindow(monitorWindow);
@@ -449,4 +426,28 @@ int main() {
     }
 
     return 0;
+}
+
+void renderPerspective(uint32_t hmdWidth, uint32_t hmdHeight, GLuint controllerShader, GLint controllerShaderMatrix,
+                       const FramebufferDesc &leftEyeDesc, unsigned int controllerVertCount, GLuint controllerVertAr) {
+    glEnable(GL_MULTISAMPLE);
+    glBindFramebuffer(GL_FRAMEBUFFER, leftEyeDesc.renderFramebufferId);
+    glViewport(0, 0, hmdWidth, hmdHeight);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glEnable(GL_DEPTH_TEST);
+    Matrix4 trans;
+    glUseProgram(controllerShader);
+    glUniformMatrix4fv(controllerShaderMatrix, 1, GL_FALSE, trans.get());
+    glBindVertexArray(controllerVertAr);
+    glDrawArrays(GL_LINES, 0, controllerVertCount);
+    glBindVertexArray(0);
+    glUseProgram(0);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glDisable(GL_MULTISAMPLE);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, leftEyeDesc.renderFramebufferId);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, leftEyeDesc.resolveFramebufferId);
+    glBlitFramebuffer(0, 0, hmdWidth, hmdHeight, 0, 0, hmdWidth, hmdHeight, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+    glEnable(GL_MULTISAMPLE);
 }
