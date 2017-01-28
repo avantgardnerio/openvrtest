@@ -5,14 +5,14 @@ include(package.cmake)
 
 set(CMAKE_CXX_STANDARD 11)
 
-set(SOURCE_FILES main.cpp)
+set(SOURCE_FILES main.cpp geom/Matrices.cpp)
 
 add_executable(openvrtest ${SOURCE_FILES})
 
 ## OpenGL / GLU
 find_package(OpenGL REQUIRED)
 
-add_definitions(-DGLEW_STATIC)
+#add_definitions(-DGLEW_STATIC)
 
 include_directories(
         .
@@ -31,9 +31,9 @@ message("------------------------" ${OPENGL_LIBRARIES})
 target_link_libraries(
         openvrtest
         ${OPENGL_LIBRARIES}
-        GLEW::GLEW
+        #GLEW:GLEW
+        "glew32s"
         SDL2::SDL2
         ${OPENVR_LIBRARY}
         ${CMAKE_DL_LIBS}
         )
-

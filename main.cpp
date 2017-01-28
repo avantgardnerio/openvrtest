@@ -13,14 +13,31 @@
 using namespace std;
 using namespace vr;
 
-Matrix4 steamMatToMatrix4( const vr::HmdMatrix34_t &matPose ) {
-    Matrix4 matrixObj(
-            matPose.m[0][0], matPose.m[1][0], matPose.m[2][0], 0.0,
-            matPose.m[0][1], matPose.m[1][1], matPose.m[2][1], 0.0,
-            matPose.m[0][2], matPose.m[1][2], matPose.m[2][2], 0.0,
-            matPose.m[0][3], matPose.m[1][3], matPose.m[2][3], 1.0f
+Matrix4 hmdMatToMatrix4(const HmdMatrix34_t &mat) {
+    return Matrix4(
+            mat.m[0][0], mat.m[1][0], mat.m[2][0], 0.0,
+            mat.m[0][1], mat.m[1][1], mat.m[2][1], 0.0,
+            mat.m[0][2], mat.m[1][2], mat.m[2][2], 0.0,
+            mat.m[0][3], mat.m[1][3], mat.m[2][3], 1.0f
     );
-    return matrixObj;
+}
+
+Matrix4 hmdMatToMatrix4(const HmdMatrix44_t &mat) {
+    return Matrix4(
+            mat.m[0][0], mat.m[1][0], mat.m[2][0], mat.m[3][0],
+            mat.m[0][1], mat.m[1][1], mat.m[2][1], mat.m[3][1],
+            mat.m[0][2], mat.m[1][2], mat.m[2][2], mat.m[3][2],
+            mat.m[0][3], mat.m[1][3], mat.m[2][3], mat.m[3][3]
+    );
+}
+
+Matrix4 getEyeMat(IVRSystem *hmd, Hmd_Eye nEye) {
+    float nearClip = 0.1f;
+    float farClip = 30.0f;
+    HmdMatrix44_t projHmd = hmd->GetProjectionMatrix(nEye, nearClip, farClip);
+    Matrix4 proj = hmdMatToMatrix4(projHmd);
+    Matrix4 trans = hmdMatToMatrix4(hmd->GetEyeToHeadTransform(nEye)).invert();
+    return proj * trans;
 }
 
 bool running = true;
@@ -34,7 +51,7 @@ struct VertexDataWindow {
     Vector2 position;
     Vector2 texCoord;
 
-    VertexDataWindow(const Vector2 & pos, const Vector2 tex) : position(pos), texCoord(tex) {	}
+    VertexDataWindow(const Vector2 &pos, const Vector2 tex) : position(pos), texCoord(tex) {}
 };
 
 struct FramebufferDesc {
@@ -45,11 +62,36 @@ struct FramebufferDesc {
     GLuint resolveFramebufferId;
 };
 
-void renderPerspective(uint32_t hmdWidth, uint32_t hmdHeight, GLuint controllerShader, GLint controllerShaderMatrix,
-                       const FramebufferDesc &leftEyeDesc, unsigned int controllerVertCount, GLuint controllerVertAr);
-
 void renderControllers(GLuint controllerShader, GLint controllerShaderMatrix, unsigned int controllerVertCount,
-                       GLuint controllerVertAr);
+                       GLuint controllerVertAr, Matrix4 proj) {
+    glUseProgram(controllerShader);
+    glUniformMatrix4fv(controllerShaderMatrix, 1, GL_FALSE, proj.get());
+    glBindVertexArray(controllerVertAr);
+    glDrawArrays(GL_LINES, 0, controllerVertCount);
+    glBindVertexArray(0);
+    glUseProgram(0);
+}
+
+void renderPerspective(uint32_t hmdWidth, uint32_t hmdHeight, GLuint controllerShader, GLint controllerShaderMatrix,
+                       const FramebufferDesc &eyeDesc, unsigned int controllerVertCount, GLuint controllerVertAr,
+                       Matrix4 proj) {
+    glEnable(GL_MULTISAMPLE);
+    glBindFramebuffer(GL_FRAMEBUFFER, eyeDesc.renderFramebufferId);
+    glViewport(0, 0, hmdWidth, hmdHeight);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glEnable(GL_DEPTH_TEST);
+
+    renderControllers(controllerShader, controllerShaderMatrix, controllerVertCount, controllerVertAr, proj);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glDisable(GL_MULTISAMPLE);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, eyeDesc.renderFramebufferId);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, eyeDesc.resolveFramebufferId);
+    glBlitFramebuffer(0, 0, hmdWidth, hmdHeight, 0, 0, hmdWidth, hmdHeight, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+    glEnable(GL_MULTISAMPLE);
+}
 
 bool createFrameBuffer(int width, int height, FramebufferDesc &framebufferDesc) {
     glGenFramebuffers(1, &framebufferDesc.renderFramebufferId);
@@ -63,7 +105,8 @@ bool createFrameBuffer(int width, int height, FramebufferDesc &framebufferDesc) 
     glGenTextures(1, &framebufferDesc.renderTextureId);
     glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, framebufferDesc.renderTextureId);
     glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, 4, GL_RGBA8, width, height, true);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, framebufferDesc.renderTextureId, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE,
+                           framebufferDesc.renderTextureId, 0);
 
     glGenFramebuffers(1, &framebufferDesc.resolveFramebufferId);
     glBindFramebuffer(GL_FRAMEBUFFER, framebufferDesc.resolveFramebufferId);
@@ -86,59 +129,58 @@ bool createFrameBuffer(int width, int height, FramebufferDesc &framebufferDesc) 
     return true;
 }
 
-GLuint compileGlShader( const char *pchShaderName, const char *pchVertexShader, const char *pchFragmentShader ) {
+GLuint compileGlShader(const char *pchShaderName, const char *pchVertexShader, const char *pchFragmentShader) {
     GLuint unProgramID = glCreateProgram();
 
     GLuint nSceneVertexShader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource( nSceneVertexShader, 1, &pchVertexShader, NULL);
-    glCompileShader( nSceneVertexShader );
+    glShaderSource(nSceneVertexShader, 1, &pchVertexShader, NULL);
+    glCompileShader(nSceneVertexShader);
 
     GLint vShaderCompiled = GL_FALSE;
-    glGetShaderiv( nSceneVertexShader, GL_COMPILE_STATUS, &vShaderCompiled);
-    if ( vShaderCompiled != GL_TRUE)
-    {
+    glGetShaderiv(nSceneVertexShader, GL_COMPILE_STATUS, &vShaderCompiled);
+    if (vShaderCompiled != GL_TRUE) {
         char buffer[1024];
-        GLsizei  len = 0;
+        GLsizei len = 0;
         glGetShaderInfoLog(nSceneVertexShader, 1024, &len, buffer);
         printf("%s - Unable to compile vertex shader %d!\n %s \n", pchShaderName, nSceneVertexShader, buffer);
-        glDeleteProgram( unProgramID );
-        glDeleteShader( nSceneVertexShader );
+        glDeleteProgram(unProgramID);
+        glDeleteShader(nSceneVertexShader);
         return 0;
     }
-    glAttachShader( unProgramID, nSceneVertexShader);
-    glDeleteShader( nSceneVertexShader ); // the program hangs onto this once it's attached
+    glAttachShader(unProgramID, nSceneVertexShader);
+    glDeleteShader(nSceneVertexShader); // the program hangs onto this once it's attached
 
-    GLuint  nSceneFragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource( nSceneFragmentShader, 1, &pchFragmentShader, NULL);
-    glCompileShader( nSceneFragmentShader );
+    GLuint nSceneFragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(nSceneFragmentShader, 1, &pchFragmentShader, NULL);
+    glCompileShader(nSceneFragmentShader);
 
     GLint fShaderCompiled = GL_FALSE;
-    glGetShaderiv( nSceneFragmentShader, GL_COMPILE_STATUS, &fShaderCompiled);
+    glGetShaderiv(nSceneFragmentShader, GL_COMPILE_STATUS, &fShaderCompiled);
     if (fShaderCompiled != GL_TRUE) {
         char buffer[1024];
-        GLsizei  len = 0;
+        GLsizei len = 0;
         glGetShaderInfoLog(nSceneFragmentShader, 1024, &len, buffer);
-        printf("%s - Unable to compile fragment shader %d!\n %s \n", pchShaderName, nSceneFragmentShader, buffer );
-        glDeleteProgram( unProgramID );
-        glDeleteShader( nSceneFragmentShader );
+        printf("%s - Unable to compile fragment shader %d!\n %s \n", pchShaderName, nSceneFragmentShader, buffer);
+        glDeleteProgram(unProgramID);
+        glDeleteShader(nSceneFragmentShader);
         return 0;
     }
 
-    glAttachShader( unProgramID, nSceneFragmentShader );
-    glDeleteShader( nSceneFragmentShader ); // the program hangs onto this once it's attached
+    glAttachShader(unProgramID, nSceneFragmentShader);
+    glDeleteShader(nSceneFragmentShader); // the program hangs onto this once it's attached
 
-    glLinkProgram( unProgramID );
+    glLinkProgram(unProgramID);
 
     GLint programSuccess = GL_TRUE;
-    glGetProgramiv( unProgramID, GL_LINK_STATUS, &programSuccess);
-    if ( programSuccess != GL_TRUE ) {
+    glGetProgramiv(unProgramID, GL_LINK_STATUS, &programSuccess);
+    if (programSuccess != GL_TRUE) {
         printf("%s - Error linking program %d!\n", pchShaderName, unProgramID);
-        glDeleteProgram( unProgramID );
+        glDeleteProgram(unProgramID);
         return 0;
     }
 
-    glUseProgram( unProgramID );
-    glUseProgram( 0 );
+    glUseProgram(unProgramID);
+    glUseProgram(0);
 
     return unProgramID;
 }
@@ -155,6 +197,7 @@ int main() {
     }
     uint32_t hmdWidth;
     uint32_t hmdHeight;
+    void* stack_ptr = (void *)&hmdHeight;
     hmd->GetRecommendedRenderTargetSize(&hmdWidth, &hmdHeight);
     if (!VRCompositor()) {
         printf("Compositor initialization failed. See log file for details\n", __FUNCTION__);
@@ -175,25 +218,27 @@ int main() {
     int minW = INT_MAX;
     int minH = INT_MAX;
     SDL_DisplayMode current;
-    for(int i = 0; i < SDL_GetNumVideoDisplays(); ++i){
+    for (int i = 0; i < SDL_GetNumVideoDisplays(); ++i) {
         int should_be_zero = SDL_GetCurrentDisplayMode(i, &current);
-        if(should_be_zero != 0) {
+        if (should_be_zero != 0) {
             printf("Could not get display mode for video display #%d: %s", i, SDL_GetError());
         } else {
             minW = min(current.w, minW);
             minH = min(current.h, minH);
-            printf("Display #%d: current display mode is %dx%dpx @ %dhz.", i, current.w, current.h, current.refresh_rate);
+            printf("Display #%d: current display mode is %dx%dpx @ %dhz.", i, current.w, current.h,
+                   current.refresh_rate);
         }
     }
-    float width = (float)minW / hmdWidth;
-    float height = (float)minH / hmdHeight;
+    float width = (float) minW / hmdWidth;
+    float height = (float) minH / hmdHeight;
     float scale = min(width, height) * 0.8f;
-    int windowWidth = (int)(hmdWidth * scale);
-    int windowHeight = (int)(hmdHeight * scale);
+    int windowWidth = (int) (hmdWidth * scale);
+    int windowHeight = (int) (hmdHeight * scale);
     int windowPosX = (minW - windowWidth) / 2;
     int windowPosY = (minH - windowHeight) / 2;
     Uint32 unWindowFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN;
-    SDL_Window *monitorWindow = SDL_CreateWindow("hellovr", windowPosX, windowPosY, windowWidth, windowHeight, unWindowFlags);
+    SDL_Window *monitorWindow = SDL_CreateWindow("hellovr", windowPosX, windowPosY, windowWidth, windowHeight,
+                                                 unWindowFlags);
     if (monitorWindow == NULL) {
         printf("%s - Window could not be created! SDL Error: %s\n", __FUNCTION__, SDL_GetError());
         return false;
@@ -266,7 +311,7 @@ int main() {
     verts.push_back(VertexDataWindow(Vector2(-1, 1), Vector2(0, 0)));
     verts.push_back(VertexDataWindow(Vector2(1, 1), Vector2(1, 0)));
 
-    GLushort indices[] = { 0, 1, 3,   0, 3, 2};
+    GLushort indices[] = {0, 1, 3, 0, 3, 2};
     unsigned int windowQuadIdxSize = _countof(indices);
 
     GLuint windowQuadVertAr = 0;
@@ -284,10 +329,12 @@ int main() {
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, windowQuadIdxSize * sizeof(GLushort), &indices[0], GL_STATIC_DRAW);
 
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(VertexDataWindow), (void *)offsetof(VertexDataWindow, position));
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(VertexDataWindow),
+                          (void *) offsetof(VertexDataWindow, position));
 
     glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(VertexDataWindow), (void *)offsetof(VertexDataWindow, texCoord));
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(VertexDataWindow),
+                          (void *) offsetof(VertexDataWindow, texCoord));
 
     glBindVertexArray(0);
 
@@ -297,6 +344,19 @@ int main() {
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
+    void *heap_ptr = malloc(16);
+
+    // Get eye projection matrices
+    float pfLeft, pfRight, pfTop, pfBottom;
+    //HiddenAreaMesh_t mesh = hmd->GetHiddenAreaMesh( (EVREye)0);
+    HmdMatrix34_t t2 = hmd->GetRawZeroPoseToStandingAbsoluteTrackingPose();
+    HmdMatrix34_t t = hmd->GetSeatedZeroPoseToStandingAbsoluteTrackingPose();
+    //hmd->GetProjectionRaw( (EVREye)0, &pfLeft, &pfRight, &pfTop, &pfBottom );
+    //hmd->GetEyeToHeadTransform((EVREye)0);
+    //hmd->GetProjectionMatrix((EVREye)0, 0.1f, 20.0f);
+    //Matrix4 eyeMats[2] = {getEyeMat(hmd, Eye_Left), getEyeMat(hmd, Eye_Right)};
+    Matrix4 eyeMats[2] = {Matrix4(), Matrix4()};
+
     // HMD frame buffers
     FramebufferDesc leftEyeDesc;
     FramebufferDesc rightEyeDesc;
@@ -305,11 +365,12 @@ int main() {
 
     // Main loop
     SDL_StartTextInput();
-    TrackedDevicePose_t devicePose[ k_unMaxTrackedDeviceCount ];
-    Matrix4 devicePoseMat[ k_unMaxTrackedDeviceCount ];
+    TrackedDevicePose_t devicePose[k_unMaxTrackedDeviceCount];
+    Matrix4 headPose;
+    Matrix4 headInverse;
     Matrix4 leftHandPose;
     Matrix4 rightHandPose;
-    while(running) {
+    while (running) {
         // SDL input
         SDL_Event sdlEvent;
         while (SDL_PollEvent(&sdlEvent) != 0) {
@@ -326,34 +387,52 @@ int main() {
         // Process SteamVR events
         vr::VREvent_t event;
         while (hmd->PollNextEvent(&event, sizeof(event))) {
-            if(event.eventType == vr::VREvent_TrackedDeviceActivated) {
+            if (event.eventType == vr::VREvent_TrackedDeviceActivated) {
                 //initDeviceModel(event.trackedDeviceIndex);
             }
         }
 
-        VRCompositor()->WaitGetPoses(devicePose, k_unMaxTrackedDeviceCount, NULL, 0);
-
         // Track devices
-        int hand = 0;
+        VRCompositor()->WaitGetPoses(devicePose, k_unMaxTrackedDeviceCount, NULL, 0);
+        //hmd->GetEyeToHeadTransform((EVREye)0);
         vector<float> floatAr;
         for (int deviceIdx = 0; deviceIdx < k_unMaxTrackedDeviceCount; ++deviceIdx) {
-            const vr::TrackedDevicePose_t& pose = devicePose[deviceIdx];
+            const TrackedDevicePose_t &pose = devicePose[deviceIdx];
             if (!pose.bPoseIsValid) {
                 continue;
             }
-            Matrix4 poseMat = steamMatToMatrix4(pose.mDeviceToAbsoluteTracking);
-            devicePoseMat[deviceIdx] = poseMat;
-            const Matrix4 &mat = devicePoseMat[deviceIdx];
+            Matrix4 poseMat = hmdMatToMatrix4(pose.mDeviceToAbsoluteTracking);
+            ETrackedDeviceClass clazz = hmd->GetTrackedDeviceClass(deviceIdx);
+            ETrackedControllerRole role = hmd->GetControllerRoleForTrackedDeviceIndex(deviceIdx);
+            if (role == TrackedControllerRole_RightHand) {
+                rightHandPose = poseMat;
+            }
+            if (role == TrackedControllerRole_LeftHand) {
+                leftHandPose = poseMat;
+            }
+            if (clazz == TrackedDeviceClass_HMD) {
+                headPose = poseMat;
+                headInverse = poseMat;
+                headInverse.invert();
+            }
 
-            Vector4 start = mat * Vector4(0, 0, 0.0f, 1);
-            Vector4 end = mat * Vector4(0, 0, -39.f, 1);
+            Vector4 start = poseMat * Vector4(0, 0, 0.0f, 1);
+            Vector4 end = poseMat * Vector4(0, 0, -39.f, 1);
             Vector3 color(1, 1, 1);
 
-            floatAr.push_back(-0.9f); floatAr.push_back(-0.9f); floatAr.push_back(0.5f);
-            floatAr.push_back(color.x); floatAr.push_back(color.y); floatAr.push_back(color.z);
+            floatAr.push_back(-0.9f);
+            floatAr.push_back(-0.9f);
+            floatAr.push_back(0.5f);
+            floatAr.push_back(color.x);
+            floatAr.push_back(color.y);
+            floatAr.push_back(color.z);
 
-            floatAr.push_back(0.9f); floatAr.push_back(0.9f); floatAr.push_back(0.5f);
-            floatAr.push_back(color.x); floatAr.push_back(color.y); floatAr.push_back(color.z);
+            floatAr.push_back(0.9f);
+            floatAr.push_back(0.9f);
+            floatAr.push_back(0.5f);
+            floatAr.push_back(color.x);
+            floatAr.push_back(color.y);
+            floatAr.push_back(color.z);
         }
 
         // Generate VBs for devices
@@ -371,11 +450,11 @@ int main() {
             GLuint offset = 0;
 
             glEnableVertexAttribArray(0);
-            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (const void *)offset);
+            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride, (const void *) offset);
 
             offset += sizeof(Vector3);
             glEnableVertexAttribArray(1);
-            glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (const void *)offset);
+            glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, (const void *) offset);
 
             glBindVertexArray(0);
         }
@@ -389,9 +468,9 @@ int main() {
 
         // Render each perspective
         renderPerspective(hmdWidth, hmdHeight, controllerShader, controllerShaderMatrix, leftEyeDesc,
-                          controllerVertCount, controllerVertAr);
+                          controllerVertCount, controllerVertAr, eyeMats[Eye_Left]);
         renderPerspective(hmdWidth, hmdHeight, controllerShader, controllerShaderMatrix, rightEyeDesc,
-                          controllerVertCount, controllerVertAr);
+                          controllerVertCount, controllerVertAr, eyeMats[Eye_Right]);
 
         // Render to monitor window
         glDisable(GL_DEPTH_TEST);
@@ -408,9 +487,9 @@ int main() {
         glUseProgram(0);
 
         // Submit to HMD
-        Texture_t leftEyeTexture = { (void*)leftEyeDesc.resolveTextureId, TextureType_OpenGL, ColorSpace_Gamma };
+        Texture_t leftEyeTexture = {(void *) leftEyeDesc.resolveTextureId, TextureType_OpenGL, ColorSpace_Gamma};
         VRCompositor()->Submit(Eye_Left, &leftEyeTexture);
-        Texture_t rightEyeTexture = { (void*)rightEyeDesc.resolveTextureId, TextureType_OpenGL, ColorSpace_Gamma };
+        Texture_t rightEyeTexture = {(void *) rightEyeDesc.resolveTextureId, TextureType_OpenGL, ColorSpace_Gamma};
         VRCompositor()->Submit(Eye_Right, &rightEyeTexture);
 
         // Swap
@@ -425,40 +504,10 @@ int main() {
 
     // Cleanup
     cout << "exit!\n";
-    if( hmd ) {
+    if (hmd) {
         VR_Shutdown();
     }
 
     return 0;
 }
 
-void renderPerspective(uint32_t hmdWidth, uint32_t hmdHeight, GLuint controllerShader, GLint controllerShaderMatrix,
-                       const FramebufferDesc &leftEyeDesc, unsigned int controllerVertCount, GLuint controllerVertAr) {
-    glEnable(GL_MULTISAMPLE);
-    glBindFramebuffer(GL_FRAMEBUFFER, leftEyeDesc.renderFramebufferId);
-    glViewport(0, 0, hmdWidth, hmdHeight);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glEnable(GL_DEPTH_TEST);
-
-    renderControllers(controllerShader, controllerShaderMatrix, controllerVertCount, controllerVertAr);
-
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glDisable(GL_MULTISAMPLE);
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, leftEyeDesc.renderFramebufferId);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, leftEyeDesc.resolveFramebufferId);
-    glBlitFramebuffer(0, 0, hmdWidth, hmdHeight, 0, 0, hmdWidth, hmdHeight, GL_COLOR_BUFFER_BIT, GL_LINEAR);
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-    glEnable(GL_MULTISAMPLE);
-}
-
-void renderControllers(GLuint controllerShader, GLint controllerShaderMatrix, unsigned int controllerVertCount,
-                       GLuint controllerVertAr) {
-    Matrix4 trans;
-    glUseProgram(controllerShader);
-    glUniformMatrix4fv(controllerShaderMatrix, 1, GL_FALSE, trans.get());
-    glBindVertexArray(controllerVertAr);
-    glDrawArrays(GL_LINES, 0, controllerVertCount);
-    glBindVertexArray(0);
-    glUseProgram(0);
-}
