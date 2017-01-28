@@ -48,6 +48,9 @@ struct FramebufferDesc {
 void renderPerspective(uint32_t hmdWidth, uint32_t hmdHeight, GLuint controllerShader, GLint controllerShaderMatrix,
                        const FramebufferDesc &leftEyeDesc, unsigned int controllerVertCount, GLuint controllerVertAr);
 
+void renderControllers(GLuint controllerShader, GLint controllerShaderMatrix, unsigned int controllerVertCount,
+                       GLuint controllerVertAr);
+
 bool createFrameBuffer(int width, int height, FramebufferDesc &framebufferDesc) {
     glGenFramebuffers(1, &framebufferDesc.renderFramebufferId);
     glBindFramebuffer(GL_FRAMEBUFFER, framebufferDesc.renderFramebufferId);
@@ -312,7 +315,8 @@ int main() {
         while (SDL_PollEvent(&sdlEvent) != 0) {
             if (sdlEvent.type == SDL_QUIT) {
                 running = false;
-            } else if (sdlEvent.type == SDL_KEYDOWN) {
+            }
+            if (sdlEvent.type == SDL_KEYDOWN) {
                 if (sdlEvent.key.keysym.sym == SDLK_ESCAPE || sdlEvent.key.keysym.sym == SDLK_q) {
                     running = false;
                 }
@@ -331,7 +335,7 @@ int main() {
 
         // Track devices
         int hand = 0;
-        std::vector<float> floatAr;
+        vector<float> floatAr;
         for (int deviceIdx = 0; deviceIdx < k_unMaxTrackedDeviceCount; ++deviceIdx) {
             const vr::TrackedDevicePose_t& pose = devicePose[deviceIdx];
             if (!pose.bPoseIsValid) {
@@ -404,10 +408,10 @@ int main() {
         glUseProgram(0);
 
         // Submit to HMD
-        vr::Texture_t leftEyeTexture = { (void*)leftEyeDesc.resolveTextureId, vr::TextureType_OpenGL, vr::ColorSpace_Gamma };
-        vr::VRCompositor()->Submit(vr::Eye_Left, &leftEyeTexture);
-        vr::Texture_t rightEyeTexture = { (void*)rightEyeDesc.resolveTextureId, vr::TextureType_OpenGL, vr::ColorSpace_Gamma };
-        vr::VRCompositor()->Submit(vr::Eye_Right, &rightEyeTexture);
+        Texture_t leftEyeTexture = { (void*)leftEyeDesc.resolveTextureId, TextureType_OpenGL, ColorSpace_Gamma };
+        VRCompositor()->Submit(Eye_Left, &leftEyeTexture);
+        Texture_t rightEyeTexture = { (void*)rightEyeDesc.resolveTextureId, TextureType_OpenGL, ColorSpace_Gamma };
+        VRCompositor()->Submit(Eye_Right, &rightEyeTexture);
 
         // Swap
         SDL_GL_SwapWindow(monitorWindow);
@@ -422,7 +426,7 @@ int main() {
     // Cleanup
     cout << "exit!\n";
     if( hmd ) {
-        vr::VR_Shutdown();
+        VR_Shutdown();
     }
 
     return 0;
@@ -435,13 +439,9 @@ void renderPerspective(uint32_t hmdWidth, uint32_t hmdHeight, GLuint controllerS
     glViewport(0, 0, hmdWidth, hmdHeight);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glEnable(GL_DEPTH_TEST);
-    Matrix4 trans;
-    glUseProgram(controllerShader);
-    glUniformMatrix4fv(controllerShaderMatrix, 1, GL_FALSE, trans.get());
-    glBindVertexArray(controllerVertAr);
-    glDrawArrays(GL_LINES, 0, controllerVertCount);
-    glBindVertexArray(0);
-    glUseProgram(0);
+
+    renderControllers(controllerShader, controllerShaderMatrix, controllerVertCount, controllerVertAr);
+
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glDisable(GL_MULTISAMPLE);
     glBindFramebuffer(GL_READ_FRAMEBUFFER, leftEyeDesc.renderFramebufferId);
@@ -450,4 +450,15 @@ void renderPerspective(uint32_t hmdWidth, uint32_t hmdHeight, GLuint controllerS
     glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
     glEnable(GL_MULTISAMPLE);
+}
+
+void renderControllers(GLuint controllerShader, GLint controllerShaderMatrix, unsigned int controllerVertCount,
+                       GLuint controllerVertAr) {
+    Matrix4 trans;
+    glUseProgram(controllerShader);
+    glUniformMatrix4fv(controllerShaderMatrix, 1, GL_FALSE, trans.get());
+    glBindVertexArray(controllerVertAr);
+    glDrawArrays(GL_LINES, 0, controllerVertCount);
+    glBindVertexArray(0);
+    glUseProgram(0);
 }
