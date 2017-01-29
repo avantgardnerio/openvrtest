@@ -5,6 +5,8 @@
 #include <SDL_mouse.h>
 #include <SDL_events.h>
 #include <GL/glew.h>
+#include <signal.h>
+#include <algorithm>
 
 #include "openvr.h"
 

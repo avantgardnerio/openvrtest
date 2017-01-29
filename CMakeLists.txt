@@ -31,8 +31,7 @@ message("------------------------" ${OPENGL_LIBRARIES})
 target_link_libraries(
         openvrtest
         ${OPENGL_LIBRARIES}
-        #GLEW:GLEW
-        "glew32s"
+        GLEW::GLEW
         SDL2::SDL2
         ${OPENVR_LIBRARY}
         ${CMAKE_DL_LIBS}
