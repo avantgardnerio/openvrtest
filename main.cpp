@@ -12,6 +12,7 @@
 
 #include "VrInput.h"
 #include "SdlContext.h"
+#include "SdlTargetWindow.h"
 
 using namespace std;
 using namespace vr;
@@ -176,25 +177,18 @@ int main() {
 		return -1;
 	}
 
-    float width = (float) sdl.getWidth() / vr.getWidth();
-    float height = (float) sdl.getHeight() / vr.getHeight();
-    float scale = min(width, height) * 0.8f;
-    int windowWidth = (int) (vr.getWidth() * scale);
-    int windowHeight = (int) (vr.getHeight() * scale);
-    int windowPosX = (sdl.getWidth() - windowWidth) / 2;
-    int windowPosY = (sdl.getHeight() - windowHeight) / 2;
-    Uint32 unWindowFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN;
-    SDL_Window *monitorWindow = SDL_CreateWindow("hellovr", windowPosX, windowPosY, windowWidth, windowHeight,
-                                                 unWindowFlags);
-    if (monitorWindow == NULL) {
-        printf("%s - Window could not be created! SDL Error: %s\n", __FUNCTION__, SDL_GetError());
-        return false;
-    }
-    SDL_GLContext monitorGlContext = SDL_GL_CreateContext(monitorWindow);
-    if (monitorGlContext == NULL) {
-        printf("%s - OpenGL context could not be created! SDL Error: %s\n", __FUNCTION__, SDL_GetError());
-        return false;
-    }
+	// Create letterboxed monitor window
+    float scaleX = (float) sdl.getWidth() / vr.getWidth();
+    float scaleY = (float) sdl.getHeight() / vr.getHeight();
+    float scale = min(scaleX, scaleY) * 0.8f;
+    int width = (int) (vr.getWidth() * scale);
+    int height = (int) (vr.getHeight() * scale);
+    int left = (sdl.getWidth() - width) / 2;
+    int top = (sdl.getHeight() - height) / 2;
+	SdlTargetWindow monitorWindow(left, top, width, height);
+	if (!monitorWindow.init()) {
+		return -1;
+	}
 
     // Init glew
     glewExperimental = GL_TRUE;
@@ -381,7 +375,7 @@ int main() {
 
         // Render to monitor window
         glDisable(GL_DEPTH_TEST);
-        glViewport(0, 0, windowWidth, windowHeight);
+        glViewport(0, 0, width, height);
         glBindVertexArray(windowQuadVertAr);
         glUseProgram(windowShader);
         glBindTexture(GL_TEXTURE_2D, leftEyeDesc.resolveTextureId);
@@ -400,7 +394,7 @@ int main() {
         VRCompositor()->Submit(Eye_Right, &rightEyeTexture);
 
         // Swap
-        SDL_GL_SwapWindow(monitorWindow);
+		monitorWindow.swap();
 
         // We want to make sure the glFinish waits for the entire present to complete, not just the submission
         // of the command. So, we do a clear here right here so the glFinish will wait fully for the swap.
