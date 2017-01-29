@@ -408,23 +408,26 @@ int main() {
                 headInverse.invert();
             }
 
-            Vector4 start = poseMat * Vector4(0, 0, 0.0f, 1);
-            Vector4 end = poseMat * Vector4(0, 0, -39.f, 1);
-            Vector3 color(1, 1, 1);
 
-            floatAr.push_back(-0.9f);
-            floatAr.push_back(-0.9f);
-            floatAr.push_back(-2.0f);
-            floatAr.push_back(color.x);
-            floatAr.push_back(color.y);
-            floatAr.push_back(color.z);
+			if (role == TrackedControllerRole_RightHand || role == TrackedControllerRole_LeftHand) {
+				Vector4 start = poseMat * Vector4(0, 0, 0.0f, 1);
+				Vector4 end = poseMat * Vector4(0, 0, -39.f, 1);
+				Vector3 color(1, 1, 1);
 
-            floatAr.push_back(0.9f);
-            floatAr.push_back(0.9f);
-            floatAr.push_back(-2.0f);
-            floatAr.push_back(color.x);
-            floatAr.push_back(color.y);
-            floatAr.push_back(color.z);
+				floatAr.push_back(start.x);
+				floatAr.push_back(start.y);
+				floatAr.push_back(start.z);
+				floatAr.push_back(color.x);
+				floatAr.push_back(color.y);
+				floatAr.push_back(color.z);
+
+				floatAr.push_back(end.x);
+				floatAr.push_back(end.y);
+				floatAr.push_back(end.z);
+				floatAr.push_back(color.x);
+				floatAr.push_back(color.y);
+				floatAr.push_back(color.z);
+			}
         }
 
         // Generate VBs for devices
