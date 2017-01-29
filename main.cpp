@@ -460,9 +460,9 @@ int main() {
 
         // Render each perspective
         renderPerspective(hmdWidth, hmdHeight, controllerShader, controllerShaderMatrix, leftEyeDesc,
-                          controllerVertCount, controllerVertAr, eyeMats[Eye_Left]);
+                          controllerVertCount, controllerVertAr, eyeMats[Eye_Left] * headInverse);
         renderPerspective(hmdWidth, hmdHeight, controllerShader, controllerShaderMatrix, rightEyeDesc,
-                          controllerVertCount, controllerVertAr, eyeMats[Eye_Right]);
+                          controllerVertCount, controllerVertAr, eyeMats[Eye_Right] * headInverse);
 
         // Render to monitor window
         glDisable(GL_DEPTH_TEST);
