@@ -6,8 +6,9 @@
 
 #include "geom/Matrices.h"
 #include "GlContext.h"
+#include "Renderable.h"
 
-class Controller
+class Controller : public Renderable
 {
 public:
 	Controller();

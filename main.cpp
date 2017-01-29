@@ -26,27 +26,6 @@ void sig_handler(int signum) {
     printf("Received signal %d\n", signum);
 }
 
-void renderPerspective(uint32_t width, uint32_t height, Controller renderable, GLuint renderId, GLuint resolveId, Matrix4 proj) {
-	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-
-	glEnable(GL_MULTISAMPLE);
-    glBindFramebuffer(GL_FRAMEBUFFER, renderId);
-    glViewport(0, 0, width, height);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glEnable(GL_DEPTH_TEST);
-
-	renderable.render(proj);
-
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glDisable(GL_MULTISAMPLE);
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, renderId);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, resolveId);
-    glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT, GL_LINEAR);
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-    glEnable(GL_MULTISAMPLE);
-}
-
 int main() {
     signal(SIGINT, sig_handler);
 
@@ -107,8 +86,7 @@ int main() {
 		rightController.setPose(vrInputState.rightHandPose);
 
 		// Render each perspective
-        renderPerspective(vr.getWidth(), vr.getHeight(), leftController, vr.getLeftRenderId(), vr.getLeftResolveId(), vr.getEyeProjLeft() * vrInputState.headInverse);
-        renderPerspective(vr.getWidth(), vr.getHeight(), leftController, vr.getRightRenderId(), vr.getLeftResolveId(), vr.getEyeProjRight() * vrInputState.headInverse);
+		vr.render(leftController, vrInputState.headInverse);
 
         // Render to monitor window
 		monitorWindow.render(vr.getLeftResolveId());

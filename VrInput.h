@@ -6,6 +6,7 @@
 
 #include "geom/Matrices.h"
 #include "GlContext.h"
+#include "Renderable.h"
 
 using namespace std;
 using namespace vr;
@@ -25,6 +26,8 @@ public:
 
 	bool init();
 	void getState(VrInputState& state);
+	void render(Renderable& renderable, Matrix4 proj);
+	void renderPerspective(EVREye eye, Renderable& renderable, Matrix4 proj);
 	void submitFrame();
 
 	uint32_t getWidth();
@@ -46,8 +49,7 @@ private:
 
 	uint32_t width;
 	uint32_t height;
-	FramebufferDesc leftEyeDesc;
-	FramebufferDesc rightEyeDesc;
+	FramebufferDesc eyeFramebuffer[2];
 
 	Matrix4 eyeProjLeft;
 	Matrix4 eyeProjRight;

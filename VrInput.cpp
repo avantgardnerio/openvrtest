@@ -22,8 +22,8 @@ bool VrInput::init() {
 	eyeProjLeft = getEyeMat(Eye_Left);
 	eyeProjRight = getEyeMat(Eye_Right);
 
-	GlContext::createFrameBuffer(width, height, leftEyeDesc);
-	GlContext::createFrameBuffer(width, height, rightEyeDesc);
+	GlContext::createFrameBuffer(width, height, eyeFramebuffer[Eye_Left]);
+	GlContext::createFrameBuffer(width, height, eyeFramebuffer[Eye_Right]);
 
 	return true;
 }
@@ -60,27 +60,53 @@ void VrInput::getState(VrInputState& state) {
 	}
 }
 
+void VrInput::render(Renderable& renderable, Matrix4 proj) {
+	renderPerspective(Eye_Left, renderable, getEyeProjLeft() * proj);
+	renderPerspective(Eye_Right, renderable, getEyeProjRight() * proj);
+}
+
+void VrInput::renderPerspective(EVREye eye, Renderable& renderable, Matrix4 proj) {
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+
+	glEnable(GL_MULTISAMPLE);
+	glBindFramebuffer(GL_FRAMEBUFFER, eyeFramebuffer[eye].renderTextureId);
+	glViewport(0, 0, width, height);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glEnable(GL_DEPTH_TEST);
+
+	renderable.render(proj);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glDisable(GL_MULTISAMPLE);
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, eyeFramebuffer[eye].renderTextureId);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, eyeFramebuffer[eye].resolveTextureId);
+	glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+	glEnable(GL_MULTISAMPLE);
+}
+
 void VrInput::submitFrame() {
-	Texture_t leftEyeTexture = { (void *)leftEyeDesc.resolveTextureId, TextureType_OpenGL, ColorSpace_Gamma };
+	Texture_t leftEyeTexture = { (void *)eyeFramebuffer[Eye_Left].resolveTextureId, TextureType_OpenGL, ColorSpace_Gamma };
 	VRCompositor()->Submit(Eye_Left, &leftEyeTexture);
-	Texture_t rightEyeTexture = { (void *)rightEyeDesc.resolveTextureId, TextureType_OpenGL, ColorSpace_Gamma };
+	Texture_t rightEyeTexture = { (void *)eyeFramebuffer[Eye_Right].resolveTextureId, TextureType_OpenGL, ColorSpace_Gamma };
 	VRCompositor()->Submit(Eye_Right, &rightEyeTexture);
 }
 
 GLuint VrInput::getLeftRenderId() {
-	return leftEyeDesc.renderFramebufferId;
+	return eyeFramebuffer[Eye_Left].renderFramebufferId;
 }
 
 GLuint VrInput::getRightRenderId() {
-	return rightEyeDesc.renderFramebufferId;
+	return eyeFramebuffer[Eye_Right].renderFramebufferId;
 }
 
 GLuint VrInput::getLeftResolveId() {
-	return leftEyeDesc.resolveFramebufferId;
+	return eyeFramebuffer[Eye_Left].resolveFramebufferId;
 }
 
 GLuint VrInput::getRightResolveId() {
-	return rightEyeDesc.resolveFramebufferId;
+	return eyeFramebuffer[Eye_Right].resolveFramebufferId;
 }
 
 uint32_t VrInput::getWidth() {
