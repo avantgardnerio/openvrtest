@@ -167,6 +167,9 @@ int main() {
 
     // Init HMD
 	VrInput vr;
+	if (!vr.init()) {
+		return -1;
+	}
 
     // Setup SDL
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
