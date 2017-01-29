@@ -5,6 +5,11 @@
 #include <SDL_mouse.h>
 #include <SDL_events.h>
 #include <stdio.h>
+#include <GL/glew.h>
+#include <vector>
+
+#include "geom/Matrices.h"
+#include "GlContext.h"
 
 class SdlTargetWindow {
 public:
@@ -13,6 +18,7 @@ public:
 
 	bool init();
 	void swap();
+	void render(GLuint textureId);
 
 private:
 	int left;
@@ -21,5 +27,11 @@ private:
 	int height;
 	SDL_Window *monitorWindow;
 	SDL_GLContext monitorGlContext;
+	GLuint windowShader;
+	GLuint windowQuadVertAr;
+	GLuint monitorWinVertBuff;
+	GLuint monitorWinIdxBuff;
+	unsigned int windowQuadIdxSize;
+
 };
 

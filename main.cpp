@@ -13,6 +13,7 @@
 #include "VrInput.h"
 #include "SdlContext.h"
 #include "SdlTargetWindow.h"
+#include "GlContext.h"
 
 using namespace std;
 using namespace vr;
@@ -23,21 +24,6 @@ void sig_handler(int signum) {
     running = false;
     printf("Received signal %d\n", signum);
 }
-
-struct VertexDataWindow {
-    Vector2 position;
-    Vector2 texCoord;
-
-    VertexDataWindow(const Vector2 &pos, const Vector2 tex) : position(pos), texCoord(tex) {}
-};
-
-struct FramebufferDesc {
-    GLuint depthBufferId;
-    GLuint renderTextureId;
-    GLuint renderFramebufferId;
-    GLuint resolveTextureId;
-    GLuint resolveFramebufferId;
-};
 
 void renderControllers(GLuint controllerShader, GLint controllerShaderMatrix, unsigned int controllerVertCount,
                        GLuint controllerVertAr, Matrix4 proj) {
@@ -70,98 +56,6 @@ void renderPerspective(uint32_t hmdWidth, uint32_t hmdHeight, GLuint controllerS
     glEnable(GL_MULTISAMPLE);
 }
 
-bool createFrameBuffer(int width, int height, FramebufferDesc &framebufferDesc) {
-    glGenFramebuffers(1, &framebufferDesc.renderFramebufferId);
-    glBindFramebuffer(GL_FRAMEBUFFER, framebufferDesc.renderFramebufferId);
-
-    glGenRenderbuffers(1, &framebufferDesc.depthBufferId);
-    glBindRenderbuffer(GL_RENDERBUFFER, framebufferDesc.depthBufferId);
-    glRenderbufferStorageMultisample(GL_RENDERBUFFER, 4, GL_DEPTH_COMPONENT, width, height);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, framebufferDesc.depthBufferId);
-
-    glGenTextures(1, &framebufferDesc.renderTextureId);
-    glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, framebufferDesc.renderTextureId);
-    glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, 4, GL_RGBA8, width, height, true);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE,
-                           framebufferDesc.renderTextureId, 0);
-
-    glGenFramebuffers(1, &framebufferDesc.resolveFramebufferId);
-    glBindFramebuffer(GL_FRAMEBUFFER, framebufferDesc.resolveFramebufferId);
-
-    glGenTextures(1, &framebufferDesc.resolveTextureId);
-    glBindTexture(GL_TEXTURE_2D, framebufferDesc.resolveTextureId);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, framebufferDesc.resolveTextureId, 0);
-
-    // check FBO status
-    GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-    if (status != GL_FRAMEBUFFER_COMPLETE) {
-        return false;
-    }
-
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-    return true;
-}
-
-GLuint compileGlShader(const char *pchShaderName, const char *pchVertexShader, const char *pchFragmentShader) {
-    GLuint unProgramID = glCreateProgram();
-
-    GLuint nSceneVertexShader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(nSceneVertexShader, 1, &pchVertexShader, NULL);
-    glCompileShader(nSceneVertexShader);
-
-    GLint vShaderCompiled = GL_FALSE;
-    glGetShaderiv(nSceneVertexShader, GL_COMPILE_STATUS, &vShaderCompiled);
-    if (vShaderCompiled != GL_TRUE) {
-        char buffer[1024];
-        GLsizei len = 0;
-        glGetShaderInfoLog(nSceneVertexShader, 1024, &len, buffer);
-        printf("%s - Unable to compile vertex shader %d!\n %s \n", pchShaderName, nSceneVertexShader, buffer);
-        glDeleteProgram(unProgramID);
-        glDeleteShader(nSceneVertexShader);
-        return 0;
-    }
-    glAttachShader(unProgramID, nSceneVertexShader);
-    glDeleteShader(nSceneVertexShader); // the program hangs onto this once it's attached
-
-    GLuint nSceneFragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(nSceneFragmentShader, 1, &pchFragmentShader, NULL);
-    glCompileShader(nSceneFragmentShader);
-
-    GLint fShaderCompiled = GL_FALSE;
-    glGetShaderiv(nSceneFragmentShader, GL_COMPILE_STATUS, &fShaderCompiled);
-    if (fShaderCompiled != GL_TRUE) {
-        char buffer[1024];
-        GLsizei len = 0;
-        glGetShaderInfoLog(nSceneFragmentShader, 1024, &len, buffer);
-        printf("%s - Unable to compile fragment shader %d!\n %s \n", pchShaderName, nSceneFragmentShader, buffer);
-        glDeleteProgram(unProgramID);
-        glDeleteShader(nSceneFragmentShader);
-        return 0;
-    }
-
-    glAttachShader(unProgramID, nSceneFragmentShader);
-    glDeleteShader(nSceneFragmentShader); // the program hangs onto this once it's attached
-
-    glLinkProgram(unProgramID);
-
-    GLint programSuccess = GL_TRUE;
-    glGetProgramiv(unProgramID, GL_LINK_STATUS, &programSuccess);
-    if (programSuccess != GL_TRUE) {
-        printf("%s - Error linking program %d!\n", pchShaderName, unProgramID);
-        glDeleteProgram(unProgramID);
-        return 0;
-    }
-
-    glUseProgram(unProgramID);
-    glUseProgram(0);
-
-    return unProgramID;
-}
-
 int main() {
     signal(SIGINT, sig_handler);
 
@@ -174,6 +68,12 @@ int main() {
     // Setup SDL
 	SdlContext sdl;
 	if (!sdl.init()) {
+		return -1;
+	}
+
+	// Init GL
+	GlContext gl;
+	if (!gl.init()) {
 		return -1;
 	}
 
@@ -190,17 +90,8 @@ int main() {
 		return -1;
 	}
 
-    // Init glew
-    glewExperimental = GL_TRUE;
-    GLenum glewError = glewInit();
-    if (glewError != GLEW_OK) {
-        printf("%s - Error initializing GLEW! %s\n", __FUNCTION__, glewGetErrorString(glewError));
-        return false;
-    }
-    glGetError(); // to clear the error caused deep in GLEW
-
-    // Init GL
-    GLuint controllerShader = compileGlShader(
+	// Init GL
+	GLuint controllerShader = gl.compileGlShader(
             "ControllerShader",
             "#version 410\n"
                     "\n"
@@ -220,70 +111,11 @@ int main() {
                     "   outputColor = v4Color;\n"
                     "}"
     );
-    GLuint windowShader = compileGlShader(
-            "MonitorWindow",
-            "#version 410 core\n"
-                    "\n"
-                    "layout(location = 0) in vec4 position;\n"
-                    "layout(location = 1) in vec2 v2UVIn;\n"
-                    "noperspective out vec2 v2UV;\n"
-                    "void main() {\n"
-                    "\tv2UV = v2UVIn;\n"
-                    "\tgl_Position = position;\n"
-                    "}",
-            "#version 410 core\n"
-                    "\n"
-                    "uniform sampler2D mytexture;\n"
-                    "noperspective in vec2 v2UV;\n"
-                    "out vec4 outputColor;\n"
-                    "void main() {\n"
-                    "\t\toutputColor = texture(mytexture, v2UV);\n"
-                    "}");
     GLint controllerShaderMatrix = glGetUniformLocation(controllerShader, "matrix");
     if (controllerShaderMatrix == -1) {
         printf("Unable to find matrix uniform in controller shader\n");
         return false;
     }
-
-    // Monitor window quad
-    std::vector<VertexDataWindow> verts;
-    verts.push_back(VertexDataWindow(Vector2(-1, -1), Vector2(0, 1)));
-    verts.push_back(VertexDataWindow(Vector2(1, -1), Vector2(1, 1)));
-    verts.push_back(VertexDataWindow(Vector2(-1, 1), Vector2(0, 0)));
-    verts.push_back(VertexDataWindow(Vector2(1, 1), Vector2(1, 0)));
-
-    GLushort indices[] = {0, 1, 3, 0, 3, 2};
-    unsigned int windowQuadIdxSize = _countof(indices);
-
-    GLuint windowQuadVertAr = 0;
-    GLuint monitorWinVertBuff = 0;
-    GLuint monitorWinIdxBuff = 0;
-    glGenVertexArrays(1, &windowQuadVertAr);
-    glBindVertexArray(windowQuadVertAr);
-
-    glGenBuffers(1, &monitorWinVertBuff);
-    glBindBuffer(GL_ARRAY_BUFFER, monitorWinVertBuff);
-    glBufferData(GL_ARRAY_BUFFER, verts.size() * sizeof(VertexDataWindow), &verts[0], GL_STATIC_DRAW);
-
-    glGenBuffers(1, &monitorWinIdxBuff);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, monitorWinIdxBuff);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, windowQuadIdxSize * sizeof(GLushort), &indices[0], GL_STATIC_DRAW);
-
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(VertexDataWindow),
-                          (void *) offsetof(VertexDataWindow, position));
-
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(VertexDataWindow),
-                          (void *) offsetof(VertexDataWindow, texCoord));
-
-    glBindVertexArray(0);
-
-    glDisableVertexAttribArray(0);
-    glDisableVertexAttribArray(1);
-
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
     Matrix4 eyeMats[2] = {vr.getEyeProjLeft(), vr.getEyeProjRight()};
     //Matrix4 eyeMats[2] = {Matrix4(), Matrix4()};
@@ -291,8 +123,8 @@ int main() {
     // HMD frame buffers
     FramebufferDesc leftEyeDesc;
     FramebufferDesc rightEyeDesc;
-    createFrameBuffer(vr.getWidth(), vr.getHeight(), leftEyeDesc);
-    createFrameBuffer(vr.getWidth(), vr.getHeight(), rightEyeDesc);
+    gl.createFrameBuffer(vr.getWidth(), vr.getHeight(), leftEyeDesc);
+    gl.createFrameBuffer(vr.getWidth(), vr.getHeight(), rightEyeDesc);
 
     // Main loop
 	VrInputState vrInputState;
@@ -374,18 +206,7 @@ int main() {
                           controllerVertCount, controllerVertAr, eyeMats[Eye_Right] * vrInputState.headInverse);
 
         // Render to monitor window
-        glDisable(GL_DEPTH_TEST);
-        glViewport(0, 0, width, height);
-        glBindVertexArray(windowQuadVertAr);
-        glUseProgram(windowShader);
-        glBindTexture(GL_TEXTURE_2D, leftEyeDesc.resolveTextureId);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glDrawElements(GL_TRIANGLES, windowQuadIdxSize, GL_UNSIGNED_SHORT, 0);
-        glBindVertexArray(0);
-        glUseProgram(0);
+		monitorWindow.render(leftEyeDesc.resolveTextureId);
 
         // Submit to HMD
         Texture_t leftEyeTexture = {(void *) leftEyeDesc.resolveTextureId, TextureType_OpenGL, ColorSpace_Gamma};
