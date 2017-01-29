@@ -12,35 +12,10 @@
 
 #include "geom/Matrices.h"
 
+#include "VrInput.h"
+
 using namespace std;
 using namespace vr;
-
-Matrix4 hmdMatToMatrix4(const HmdMatrix34_t &mat) {
-    return Matrix4(
-            mat.m[0][0], mat.m[1][0], mat.m[2][0], 0.0,
-            mat.m[0][1], mat.m[1][1], mat.m[2][1], 0.0,
-            mat.m[0][2], mat.m[1][2], mat.m[2][2], 0.0,
-            mat.m[0][3], mat.m[1][3], mat.m[2][3], 1.0f
-    );
-}
-
-Matrix4 hmdMatToMatrix4(const HmdMatrix44_t &mat) {
-    return Matrix4(
-            mat.m[0][0], mat.m[1][0], mat.m[2][0], mat.m[3][0],
-            mat.m[0][1], mat.m[1][1], mat.m[2][1], mat.m[3][1],
-            mat.m[0][2], mat.m[1][2], mat.m[2][2], mat.m[3][2],
-            mat.m[0][3], mat.m[1][3], mat.m[2][3], mat.m[3][3]
-    );
-}
-
-Matrix4 getEyeMat(IVRSystem *hmd, Hmd_Eye nEye) {
-    float nearClip = 0.1f;
-    float farClip = 30.0f;
-    HmdMatrix44_t projHmd = hmd->GetProjectionMatrix(nEye, nearClip, farClip);
-    Matrix4 proj = hmdMatToMatrix4(projHmd);
-    Matrix4 trans = hmdMatToMatrix4(hmd->GetEyeToHeadTransform(nEye)).invert();
-    return proj * trans;
-}
 
 bool running = true;
 
@@ -191,20 +166,7 @@ int main() {
     signal(SIGINT, sig_handler);
 
     // Init HMD
-    EVRInitError eError = VRInitError_None;
-    IVRSystem *hmd = VR_Init(&eError, VRApplication_Scene);
-    if (eError != VRInitError_None) {
-        printf("Unable to init VR runtime: %s", VR_GetVRInitErrorAsEnglishDescription(eError));
-        return -1;
-    }
-    uint32_t hmdWidth;
-    uint32_t hmdHeight;
-    void* stack_ptr = (void *)&hmdHeight;
-    hmd->GetRecommendedRenderTargetSize(&hmdWidth, &hmdHeight);
-    if (!VRCompositor()) {
-        printf("Compositor initialization failed. See log file for details\n", __FUNCTION__);
-        return -1;
-    }
+	VrInput vr;
 
     // Setup SDL
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
@@ -231,11 +193,11 @@ int main() {
                    current.refresh_rate);
         }
     }
-    float width = (float) minW / hmdWidth;
-    float height = (float) minH / hmdHeight;
+    float width = (float) minW / vr.getWidth();
+    float height = (float) minH / vr.getHeight();
     float scale = min(width, height) * 0.8f;
-    int windowWidth = (int) (hmdWidth * scale);
-    int windowHeight = (int) (hmdHeight * scale);
+    int windowWidth = (int) (vr.getWidth() * scale);
+    int windowHeight = (int) (vr.getHeight() * scale);
     int windowPosX = (minW - windowWidth) / 2;
     int windowPosY = (minH - windowHeight) / 2;
     Uint32 unWindowFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN;
@@ -346,22 +308,18 @@ int main() {
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
-    Matrix4 eyeMats[2] = {getEyeMat(hmd, Eye_Left), getEyeMat(hmd, Eye_Right)};
+    Matrix4 eyeMats[2] = {vr.getEyeProjLeft(), vr.getEyeProjRight()};
     //Matrix4 eyeMats[2] = {Matrix4(), Matrix4()};
 
     // HMD frame buffers
     FramebufferDesc leftEyeDesc;
     FramebufferDesc rightEyeDesc;
-    createFrameBuffer(hmdWidth, hmdHeight, leftEyeDesc);
-    createFrameBuffer(hmdWidth, hmdHeight, rightEyeDesc);
+    createFrameBuffer(vr.getWidth(), vr.getHeight(), leftEyeDesc);
+    createFrameBuffer(vr.getWidth(), vr.getHeight(), rightEyeDesc);
 
     // Main loop
+	VrInputState vrInputState;
     SDL_StartTextInput();
-    TrackedDevicePose_t devicePose[k_unMaxTrackedDeviceCount];
-    Matrix4 headPose;
-    Matrix4 headInverse;
-    Matrix4 leftHandPose;
-    Matrix4 rightHandPose;
     while (running) {
         // SDL input
         SDL_Event sdlEvent;
@@ -376,58 +334,29 @@ int main() {
             }
         }
 
-        // Process SteamVR events
-        vr::VREvent_t event;
-        while (hmd->PollNextEvent(&event, sizeof(event))) {
-            if (event.eventType == vr::VREvent_TrackedDeviceActivated) {
-                //initDeviceModel(event.trackedDeviceIndex);
-            }
-        }
+		// Track devices
+		vr.getState(vrInputState);
 
-        // Track devices
-        VRCompositor()->WaitGetPoses(devicePose, k_unMaxTrackedDeviceCount, NULL, 0);
-        //hmd->GetEyeToHeadTransform((EVREye)0);
         vector<float> floatAr;
-        for (int deviceIdx = 0; deviceIdx < k_unMaxTrackedDeviceCount; ++deviceIdx) {
-            const TrackedDevicePose_t &pose = devicePose[deviceIdx];
-            if (!pose.bPoseIsValid) {
-                continue;
-            }
-            Matrix4 poseMat = hmdMatToMatrix4(pose.mDeviceToAbsoluteTracking);
-            ETrackedDeviceClass clazz = hmd->GetTrackedDeviceClass(deviceIdx);
-            ETrackedControllerRole role = hmd->GetControllerRoleForTrackedDeviceIndex(deviceIdx);
-            if (role == TrackedControllerRole_RightHand) {
-                rightHandPose = poseMat;
-            }
-            if (role == TrackedControllerRole_LeftHand) {
-                leftHandPose = poseMat;
-            }
-            if (clazz == TrackedDeviceClass_HMD) {
-                headPose = poseMat;
-                headInverse = poseMat;
-                headInverse.invert();
-            }
+        for (int deviceIdx = 0; deviceIdx < 2; ++deviceIdx) {
+			Matrix4 pose = deviceIdx == 0 ? vrInputState.leftHandPose : vrInputState.rightHandPose;
+			Vector4 start = pose * Vector4(0, 0, 0.0f, 1);
+			Vector4 end = pose * Vector4(0, 0, -39.f, 1);
+			Vector3 color(1, 1, 1);
 
+			floatAr.push_back(start.x);
+			floatAr.push_back(start.y);
+			floatAr.push_back(start.z);
+			floatAr.push_back(color.x);
+			floatAr.push_back(color.y);
+			floatAr.push_back(color.z);
 
-			if (role == TrackedControllerRole_RightHand || role == TrackedControllerRole_LeftHand) {
-				Vector4 start = poseMat * Vector4(0, 0, 0.0f, 1);
-				Vector4 end = poseMat * Vector4(0, 0, -39.f, 1);
-				Vector3 color(1, 1, 1);
-
-				floatAr.push_back(start.x);
-				floatAr.push_back(start.y);
-				floatAr.push_back(start.z);
-				floatAr.push_back(color.x);
-				floatAr.push_back(color.y);
-				floatAr.push_back(color.z);
-
-				floatAr.push_back(end.x);
-				floatAr.push_back(end.y);
-				floatAr.push_back(end.z);
-				floatAr.push_back(color.x);
-				floatAr.push_back(color.y);
-				floatAr.push_back(color.z);
-			}
+			floatAr.push_back(end.x);
+			floatAr.push_back(end.y);
+			floatAr.push_back(end.z);
+			floatAr.push_back(color.x);
+			floatAr.push_back(color.y);
+			floatAr.push_back(color.z);
         }
 
         // Generate VBs for devices
@@ -462,10 +391,10 @@ int main() {
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
         // Render each perspective
-        renderPerspective(hmdWidth, hmdHeight, controllerShader, controllerShaderMatrix, leftEyeDesc,
-                          controllerVertCount, controllerVertAr, eyeMats[Eye_Left] * headInverse);
-        renderPerspective(hmdWidth, hmdHeight, controllerShader, controllerShaderMatrix, rightEyeDesc,
-                          controllerVertCount, controllerVertAr, eyeMats[Eye_Right] * headInverse);
+        renderPerspective(vr.getWidth(), vr.getHeight(), controllerShader, controllerShaderMatrix, leftEyeDesc,
+                          controllerVertCount, controllerVertAr, eyeMats[Eye_Left] * vrInputState.headInverse);
+        renderPerspective(vr.getWidth(), vr.getHeight(), controllerShader, controllerShaderMatrix, rightEyeDesc,
+                          controllerVertCount, controllerVertAr, eyeMats[Eye_Right] * vrInputState.headInverse);
 
         // Render to monitor window
         glDisable(GL_DEPTH_TEST);
@@ -499,9 +428,6 @@ int main() {
 
     // Cleanup
     cout << "exit!\n";
-    if (hmd) {
-        VR_Shutdown();
-    }
 
     return 0;
 }
