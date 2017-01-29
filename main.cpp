@@ -11,6 +11,7 @@
 #include "geom/Matrices.h"
 
 #include "VrInput.h"
+#include "SdlContext.h"
 
 using namespace std;
 using namespace vr;
@@ -170,37 +171,18 @@ int main() {
 	}
 
     // Setup SDL
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 1);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 0);
-    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 0);
+	SdlContext sdl;
+	if (!sdl.init()) {
+		return -1;
+	}
 
-    if (SDL_VideoInit(NULL) != 0) {
-        printf("Error initializing SDL video:  %s\n", SDL_GetError());
-        return 2;
-    }
-    int minW = INT_MAX;
-    int minH = INT_MAX;
-    SDL_DisplayMode current;
-    for (int i = 0; i < SDL_GetNumVideoDisplays(); ++i) {
-        int should_be_zero = SDL_GetCurrentDisplayMode(i, &current);
-        if (should_be_zero != 0) {
-            printf("Could not get display mode for video display #%d: %s", i, SDL_GetError());
-        } else {
-            minW = min(current.w, minW);
-            minH = min(current.h, minH);
-            printf("Display #%d: current display mode is %dx%dpx @ %dhz.", i, current.w, current.h,
-                   current.refresh_rate);
-        }
-    }
-    float width = (float) minW / vr.getWidth();
-    float height = (float) minH / vr.getHeight();
+    float width = (float) sdl.getWidth() / vr.getWidth();
+    float height = (float) sdl.getHeight() / vr.getHeight();
     float scale = min(width, height) * 0.8f;
     int windowWidth = (int) (vr.getWidth() * scale);
     int windowHeight = (int) (vr.getHeight() * scale);
-    int windowPosX = (minW - windowWidth) / 2;
-    int windowPosY = (minH - windowHeight) / 2;
+    int windowPosX = (sdl.getWidth() - windowWidth) / 2;
+    int windowPosY = (sdl.getHeight() - windowHeight) / 2;
     Uint32 unWindowFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN;
     SDL_Window *monitorWindow = SDL_CreateWindow("hellovr", windowPosX, windowPosY, windowWidth, windowHeight,
                                                  unWindowFlags);

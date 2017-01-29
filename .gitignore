@@ -5,3 +5,4 @@ cmake-build-debug/
 # cget
 .cget/
 .cget-bin/
+build/
