@@ -8,6 +8,7 @@ SdlContext::SdlContext() {
 }
 
 SdlContext::~SdlContext() {
+	SDL_StopTextInput();
 }
 
 bool SdlContext::init() {

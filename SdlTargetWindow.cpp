@@ -115,5 +115,7 @@ void SdlTargetWindow::render(GLuint textureId) {
 
 void SdlTargetWindow::swap() {
 	SDL_GL_SwapWindow(monitorWindow);
+	glClearColor(0, 0, 0, 1);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
