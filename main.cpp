@@ -8,8 +8,6 @@
 #include <signal.h>
 #include <algorithm>
 
-#include "openvr.h"
-
 #include "geom/Matrices.h"
 
 #include "VrInput.h"
