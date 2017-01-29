@@ -26,20 +26,22 @@ void sig_handler(int signum) {
     printf("Received signal %d\n", signum);
 }
 
-void renderPerspective(uint32_t hmdWidth, uint32_t hmdHeight, Controller controller, const FramebufferDesc &eyeDesc, Matrix4 proj) {
-    glEnable(GL_MULTISAMPLE);
-    glBindFramebuffer(GL_FRAMEBUFFER, eyeDesc.renderFramebufferId);
-    glViewport(0, 0, hmdWidth, hmdHeight);
+void renderPerspective(uint32_t width, uint32_t height, Controller renderable, GLuint renderId, GLuint resolveId, Matrix4 proj) {
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+
+	glEnable(GL_MULTISAMPLE);
+    glBindFramebuffer(GL_FRAMEBUFFER, renderId);
+    glViewport(0, 0, width, height);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glEnable(GL_DEPTH_TEST);
 
-	controller.render(proj);
+	renderable.render(proj);
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glDisable(GL_MULTISAMPLE);
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, eyeDesc.renderFramebufferId);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, eyeDesc.resolveFramebufferId);
-    glBlitFramebuffer(0, 0, hmdWidth, hmdHeight, 0, 0, hmdWidth, hmdHeight, GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, renderId);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, resolveId);
+    glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT, GL_LINEAR);
     glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
     glEnable(GL_MULTISAMPLE);
@@ -47,12 +49,6 @@ void renderPerspective(uint32_t hmdWidth, uint32_t hmdHeight, Controller control
 
 int main() {
     signal(SIGINT, sig_handler);
-
-    // Init HMD
-	VrInput vr;
-	if (!vr.init()) {
-		return -1;
-	}
 
     // Setup SDL
 	SdlContext sdl;
@@ -67,15 +63,14 @@ int main() {
 	}
 
 	// Create letterboxed monitor window
-    float scaleX = (float) sdl.getWidth() / vr.getWidth();
-    float scaleY = (float) sdl.getHeight() / vr.getHeight();
-    float scale = min(scaleX, scaleY) * 0.8f;
-    int width = (int) (vr.getWidth() * scale);
-    int height = (int) (vr.getHeight() * scale);
-    int left = (sdl.getWidth() - width) / 2;
-    int top = (sdl.getHeight() - height) / 2;
-	SdlTargetWindow monitorWindow(left, top, width, height);
+	SdlTargetWindow monitorWindow(571, 108, 777, 864);
 	if (!monitorWindow.init()) {
+		return -1;
+	}
+
+	// Init HMD
+	VrInput vr;
+	if (!vr.init()) {
 		return -1;
 	}
 
@@ -88,15 +83,6 @@ int main() {
 	if (!rightController.init()) {
 		return -1;
 	}
-
-    Matrix4 eyeMats[2] = {vr.getEyeProjLeft(), vr.getEyeProjRight()};
-    //Matrix4 eyeMats[2] = {Matrix4(), Matrix4()};
-
-    // HMD frame buffers
-    FramebufferDesc leftEyeDesc;
-    FramebufferDesc rightEyeDesc;
-    gl.createFrameBuffer(vr.getWidth(), vr.getHeight(), leftEyeDesc);
-    gl.createFrameBuffer(vr.getWidth(), vr.getHeight(), rightEyeDesc);
 
     // Main loop
 	VrInputState vrInputState;
@@ -120,20 +106,15 @@ int main() {
 		leftController.setPose(vrInputState.leftHandPose);
 		rightController.setPose(vrInputState.rightHandPose);
 
-        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-
-        // Render each perspective
-        renderPerspective(vr.getWidth(), vr.getHeight(), leftController, leftEyeDesc, eyeMats[Eye_Left] * vrInputState.headInverse);
-        renderPerspective(vr.getWidth(), vr.getHeight(), leftController, rightEyeDesc, eyeMats[Eye_Right] * vrInputState.headInverse);
+		// Render each perspective
+        renderPerspective(vr.getWidth(), vr.getHeight(), leftController, vr.getLeftRenderId(), vr.getLeftResolveId(), vr.getEyeProjLeft() * vrInputState.headInverse);
+        renderPerspective(vr.getWidth(), vr.getHeight(), leftController, vr.getRightRenderId(), vr.getLeftResolveId(), vr.getEyeProjRight() * vrInputState.headInverse);
 
         // Render to monitor window
-		monitorWindow.render(leftEyeDesc.resolveTextureId);
+		monitorWindow.render(vr.getLeftResolveId());
 
         // Submit to HMD
-        Texture_t leftEyeTexture = {(void *) leftEyeDesc.resolveTextureId, TextureType_OpenGL, ColorSpace_Gamma};
-        VRCompositor()->Submit(Eye_Left, &leftEyeTexture);
-        Texture_t rightEyeTexture = {(void *) rightEyeDesc.resolveTextureId, TextureType_OpenGL, ColorSpace_Gamma};
-        VRCompositor()->Submit(Eye_Right, &rightEyeTexture);
+		vr.submitFrame();
 
         // Swap
 		monitorWindow.swap();

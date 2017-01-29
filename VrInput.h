@@ -3,7 +3,9 @@
 #include <vector>
 
 #include "openvr.h"
+
 #include "geom/Matrices.h"
+#include "GlContext.h"
 
 using namespace std;
 using namespace vr;
@@ -23,9 +25,15 @@ public:
 
 	bool init();
 	void getState(VrInputState& state);
+	void submitFrame();
 
 	uint32_t getWidth();
 	uint32_t getHeight();
+
+	GLuint getLeftRenderId();
+	GLuint getRightRenderId();
+	GLuint getLeftResolveId();
+	GLuint getRightResolveId();
 
 	Matrix4 getEyeProjLeft();
 	Matrix4 getEyeProjRight();
@@ -38,9 +46,13 @@ private:
 
 	uint32_t width;
 	uint32_t height;
+	FramebufferDesc leftEyeDesc;
+	FramebufferDesc rightEyeDesc;
+
 	Matrix4 eyeProjLeft;
 	Matrix4 eyeProjRight;
 
+	// Methods
 	Matrix4 getEyeMat(Hmd_Eye eye);
 	Matrix4 hmdMatToMatrix4(const HmdMatrix34_t &mat);
 	Matrix4 hmdMatToMatrix4(const HmdMatrix44_t &mat);
