@@ -346,18 +346,8 @@ int main() {
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
-    void *heap_ptr = malloc(16);
-
-    // Get eye projection matrices
-    float pfLeft, pfRight, pfTop, pfBottom;
-    //HiddenAreaMesh_t mesh = hmd->GetHiddenAreaMesh( (EVREye)0);
-    HmdMatrix34_t t2 = hmd->GetRawZeroPoseToStandingAbsoluteTrackingPose();
-    HmdMatrix34_t t = hmd->GetSeatedZeroPoseToStandingAbsoluteTrackingPose();
-    //hmd->GetProjectionRaw( (EVREye)0, &pfLeft, &pfRight, &pfTop, &pfBottom );
-    //hmd->GetEyeToHeadTransform((EVREye)0);
-    //hmd->GetProjectionMatrix((EVREye)0, 0.1f, 20.0f);
-    //Matrix4 eyeMats[2] = {getEyeMat(hmd, Eye_Left), getEyeMat(hmd, Eye_Right)};
-    Matrix4 eyeMats[2] = {Matrix4(), Matrix4()};
+    Matrix4 eyeMats[2] = {getEyeMat(hmd, Eye_Left), getEyeMat(hmd, Eye_Right)};
+    //Matrix4 eyeMats[2] = {Matrix4(), Matrix4()};
 
     // HMD frame buffers
     FramebufferDesc leftEyeDesc;
@@ -424,14 +414,14 @@ int main() {
 
             floatAr.push_back(-0.9f);
             floatAr.push_back(-0.9f);
-            floatAr.push_back(0.5f);
+            floatAr.push_back(-2.0f);
             floatAr.push_back(color.x);
             floatAr.push_back(color.y);
             floatAr.push_back(color.z);
 
             floatAr.push_back(0.9f);
             floatAr.push_back(0.9f);
-            floatAr.push_back(0.5f);
+            floatAr.push_back(-2.0f);
             floatAr.push_back(color.x);
             floatAr.push_back(color.y);
             floatAr.push_back(color.z);
