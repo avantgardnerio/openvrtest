@@ -18,7 +18,7 @@ int main() {
 	Controller leftController;
 	Controller rightController;
 	Square square;
-	//AssImpObj duck("..\\..\\..\\..\\assets\\duck.dae");
+	AssImpObj duck("..\\..\\..\\..\\assets\\duck.dae");
 
 	// Init
 	sdl.init();
@@ -27,14 +27,14 @@ int main() {
 	leftController.init();
 	rightController.init();
 	square.init();
-	//duck.init();
+	duck.init();
 
 	// Build scene
 	vector<Renderable*> scene;
 	scene.push_back(&rightController);
 	scene.push_back(&leftController);
 	scene.push_back(&square);
-	//scene.push_back(&duck);
+	scene.push_back(&duck);
 
     // Main loop
 	Matrix4 worldTrans;
@@ -97,7 +97,7 @@ int main() {
 
 			trans.translate(delta);
 
-			worldTrans = gripWorld * trans;
+			//worldTrans = gripWorld * trans;
 		}
 
 		// Render each perspective to texture

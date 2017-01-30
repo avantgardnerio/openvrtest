@@ -13,6 +13,7 @@ build/
 Win32/
 Debug/
 *.VC.*
+.vs/
 
 # cmake
 CMakeFiles/

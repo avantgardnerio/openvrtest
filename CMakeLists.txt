@@ -5,7 +5,17 @@ include(package.cmake)
 
 set(CMAKE_CXX_STANDARD 11)
 
-set(SOURCE_FILES main.cpp geom/Matrices.cpp Controller.cpp GlContext.cpp SdlContext.cpp SdlTargetWindow.cpp Square.cpp VrInput.cpp)
+set(SOURCE_FILES 
+	main.cpp 
+	geom/Matrices.cpp 
+	Controller.cpp 
+	GlContext.cpp 
+	SdlContext.cpp 
+	SdlTargetWindow.cpp 
+	Square.cpp 
+	VrInput.cpp
+	AssImpObj.cpp
+	)
 
 add_executable(openvrtest ${SOURCE_FILES})
 
