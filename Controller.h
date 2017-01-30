@@ -14,7 +14,7 @@ public:
 	Controller();
 	~Controller();
 
-	bool init();
+	void init();
 	void render(Matrix4 proj);
 	void setPose(Matrix4 pose);
 

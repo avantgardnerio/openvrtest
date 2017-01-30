@@ -6,10 +6,6 @@ GlContext::GlContext() {
 GlContext::~GlContext() {
 }
 
-bool GlContext::init() {
-	return true;
-}
-
 bool GlContext::createFrameBuffer(int width, int height, FramebufferDesc &framebufferDesc) {
 	glGenFramebuffers(1, &framebufferDesc.renderFramebufferId);
 	glBindFramebuffer(GL_FRAMEBUFFER, framebufferDesc.renderFramebufferId);

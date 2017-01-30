@@ -13,7 +13,7 @@ public:
 	SdlContext();
 	~SdlContext();
 
-	bool init();
+	void init();
 	const Uint8 *getState();
 
 	int getWidth();

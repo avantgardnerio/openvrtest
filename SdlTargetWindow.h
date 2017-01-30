@@ -16,7 +16,7 @@ public:
 	SdlTargetWindow(int left, int top, int width, int height);
 	~SdlTargetWindow();
 
-	bool init();
+	void init();
 	void swap();
 	void render(GLuint textureId);
 

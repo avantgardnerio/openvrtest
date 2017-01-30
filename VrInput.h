@@ -24,7 +24,7 @@ public:
 	VrInput();
 	~VrInput();
 
-	bool init();
+	void init();
 	void getState(VrInputState& state);
 	void render(vector<Renderable*>& renderable, Matrix4 proj);
 	void renderPerspective(EVREye eye, vector<Renderable*>& renderable, Matrix4 proj);

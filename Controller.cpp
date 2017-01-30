@@ -9,7 +9,7 @@ Controller::Controller() {
 	controllerVertBuffer = 0;
 }
 
-bool Controller::init() { // TODO: Better pattern than init()
+void Controller::init() { 
 	if (controllerShader == 0) { // TODO: Thread safety?
 		controllerShader = GlContext::compileGlShader( // TODO: Shaders as resources
 			"ControllerShader",
@@ -35,8 +35,7 @@ bool Controller::init() { // TODO: Better pattern than init()
 		);
 		controllerShaderMatrix = glGetUniformLocation(controllerShader, "matrix");
 		if (controllerShaderMatrix == -1) {
-			printf("Unable to find matrix uniform in controller shader\n");
-			return false;
+			throw new exception("Unable to find matrix uniform in controller shader\n");
 		}
 
 		vector<float> floatAr;
@@ -81,7 +80,6 @@ bool Controller::init() { // TODO: Better pattern than init()
 		glBindBuffer(GL_ARRAY_BUFFER, controllerVertBuffer);
 		glBufferData(GL_ARRAY_BUFFER, sizeof(float) * floatAr.size(), &floatAr[0], GL_STREAM_DRAW);
 	}
-	return true;
 }
 
 Controller::~Controller() {

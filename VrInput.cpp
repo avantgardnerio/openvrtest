@@ -8,24 +8,20 @@ VrInput::~VrInput() {
 	VR_Shutdown();
 }
 
-bool VrInput::init() {
+void VrInput::init() {
 	hmd = VR_Init(&error, VRApplication_Scene);
 	if (error != VRInitError_None) {
-		printf("Unable to init VR runtime: %s", VR_GetVRInitErrorAsEnglishDescription(error));
-		return false;
+		throw new exception(VR_GetVRInitErrorAsEnglishDescription(error));
 	}
 	hmd->GetRecommendedRenderTargetSize(&width, &height);
 	if (!VRCompositor()) {
-		printf("Compositor initialization failed. See log file for details\n", __FUNCTION__);
-		return false;
+		throw new exception("Compositor initialization failed. See log file for details\n");
 	}
 	eyeProjLeft = getEyeMat(Eye_Left);
 	eyeProjRight = getEyeMat(Eye_Right);
 
 	GlContext::createFrameBuffer(width, height, eyeFramebuffer[Eye_Left]);
 	GlContext::createFrameBuffer(width, height, eyeFramebuffer[Eye_Right]);
-
-	return true;
 }
 
 void VrInput::getState(VrInputState& state) {

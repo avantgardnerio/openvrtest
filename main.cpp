@@ -29,39 +29,21 @@ void sig_handler(int signum) {
 int main() {
     signal(SIGINT, sig_handler);
 
-    // Setup SDL
+    // Setup
 	SdlContext sdl;
-	if (!sdl.init()) {
-		return -1;
-	}
-
-	// Init GL
-	GlContext gl;
-	if (!gl.init()) {
-		return -1;
-	}
-
-	// Create letterboxed monitor window
 	SdlTargetWindow monitorWindow(571, 108, 777, 864); // TODO: fix hard coded values for 1080 monitor
-	if (!monitorWindow.init()) {
-		return -1;
-	}
-
-	// Init HMD
 	VrInput vr;
-	if (!vr.init()) {
-		return -1;
-	}
-
-	// Init GL
 	Controller leftController;
-	if (!leftController.init()) {
-		return -1;
-	}
 	Controller rightController;
-	if (!rightController.init()) {
-		return -1;
-	}
+
+	// Init
+	sdl.init();
+	monitorWindow.init();
+	vr.init();
+	leftController.init();
+	rightController.init();
+
+	// Build scene
 	vector<Renderable*> scene;
 	scene.push_back(&rightController);
 	scene.push_back(&leftController);

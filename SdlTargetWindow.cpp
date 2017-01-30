@@ -13,25 +13,22 @@ SdlTargetWindow::SdlTargetWindow(int left, int top, int width, int height) {
 	monitorWinIdxBuff = 0;
 }
 
-bool SdlTargetWindow::init() {
+void SdlTargetWindow::init() {
 	Uint32 unWindowFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN;
 	monitorWindow = SDL_CreateWindow("hellovr", left, top, width, height, unWindowFlags);
 	if (monitorWindow == NULL) {
-		printf("%s - Window could not be created! SDL Error: %s\n", __FUNCTION__, SDL_GetError());
-		return false;
+		throw new exception(SDL_GetError());
 	}
 	monitorGlContext = SDL_GL_CreateContext(monitorWindow);
 	if (monitorGlContext == NULL) {
-		printf("%s - OpenGL context could not be created! SDL Error: %s\n", __FUNCTION__, SDL_GetError());
-		return false;
+		throw new exception(SDL_GetError());
 	}
 
 	// HACK: Glew needs to be inited after creating the window and before compiling the shader. Find a better place for this.
 	glewExperimental = GL_TRUE;
 	GLenum glewError = glewInit();
 	if (glewError != GLEW_OK) {
-		printf("%s - Error initializing GLEW! %s\n", __FUNCTION__, glewGetErrorString(glewError));
-		return false;
+		throw new exception((const char *)glewGetErrorString(glewError));
 	}
 	glGetError();
 
@@ -91,8 +88,6 @@ bool SdlTargetWindow::init() {
 
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-
-	return true;
 }
 
 SdlTargetWindow::~SdlTargetWindow() {
