@@ -33,10 +33,7 @@ int main() {
     while (true) {
         // SDL input
 		const Uint8* state = sdl.getState();
-		if (state == NULL) {
-			break;
-		}
-		if (state[SDLK_ESCAPE] || state[SDLK_q]) {
+		if (state == NULL || state[SDLK_ESCAPE] != 0 || state[SDLK_q] != 0) {
 			break;
 		}
 
