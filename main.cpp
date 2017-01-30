@@ -1,23 +1,11 @@
-#include <iostream>
-#include <vector>
-#include <SDL_video.h>
-#include <SDL_keyboard.h>
-#include <SDL_mouse.h>
-#include <SDL_events.h>
-#include <GL/glew.h>
 #include <signal.h>
-#include <algorithm>
-
-#include "geom/Matrices.h"
 
 #include "VrInput.h"
 #include "SdlContext.h"
 #include "SdlTargetWindow.h"
-#include "GlContext.h"
 #include "Controller.h"
 
 using namespace std;
-using namespace vr;
 
 bool running = true;
 
