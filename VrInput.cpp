@@ -60,21 +60,22 @@ void VrInput::getState(VrInputState& state) {
 	}
 }
 
-void VrInput::render(Renderable& renderable, Matrix4 proj) {
-	renderPerspective(Eye_Left, renderable, getEyeProjLeft() * proj);
-	renderPerspective(Eye_Right, renderable, getEyeProjRight() * proj);
+void VrInput::render(vector<Renderable*>& scene, Matrix4 proj) {
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+	renderPerspective(Eye_Left, scene, getEyeProjLeft() * proj);
+	renderPerspective(Eye_Right, scene, getEyeProjRight() * proj);
 }
 
-void VrInput::renderPerspective(EVREye eye, Renderable& renderable, Matrix4 proj) {
-	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-
+void VrInput::renderPerspective(EVREye eye, vector<Renderable*>& scene, Matrix4 proj) {
 	glEnable(GL_MULTISAMPLE);
 	glBindFramebuffer(GL_FRAMEBUFFER, eyeFramebuffer[eye].renderTextureId);
 	glViewport(0, 0, width, height);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glEnable(GL_DEPTH_TEST);
 
-	renderable.render(proj);
+	for (Renderable* renderable : scene) {
+		renderable->render(proj);
+	}
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glDisable(GL_MULTISAMPLE);

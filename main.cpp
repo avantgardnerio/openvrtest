@@ -42,7 +42,7 @@ int main() {
 	}
 
 	// Create letterboxed monitor window
-	SdlTargetWindow monitorWindow(571, 108, 777, 864);
+	SdlTargetWindow monitorWindow(571, 108, 777, 864); // TODO: fix hard coded values for 1080 monitor
 	if (!monitorWindow.init()) {
 		return -1;
 	}
@@ -62,44 +62,37 @@ int main() {
 	if (!rightController.init()) {
 		return -1;
 	}
+	vector<Renderable*> scene;
+	scene.push_back(&rightController);
+	scene.push_back(&leftController);
 
     // Main loop
 	VrInputState vrInputState;
     SDL_StartTextInput();
     while (running) {
         // SDL input
-        SDL_Event sdlEvent;
-        while (SDL_PollEvent(&sdlEvent) != 0) {
-            if (sdlEvent.type == SDL_QUIT) {
-                running = false;
-            }
-            if (sdlEvent.type == SDL_KEYDOWN) {
-                if (sdlEvent.key.keysym.sym == SDLK_ESCAPE || sdlEvent.key.keysym.sym == SDLK_q) {
-                    running = false;
-                }
-            }
-        }
+		const Uint8* state = sdl.getState();
+		if (state == NULL) {
+			running = false;
+			break;
+		}
+		if (state[SDLK_ESCAPE] || state[SDLK_q]) {
+			running = false;
+		}
 
-		// Track devices
+		// VR input
 		vr.getState(vrInputState);
 		leftController.setPose(vrInputState.leftHandPose);
 		rightController.setPose(vrInputState.rightHandPose);
 
-		// Render each perspective
-		vr.render(leftController, vrInputState.headInverse);
+		// Render each perspective to texture
+		vr.render(scene, vrInputState.headInverse);
 
-        // Render to monitor window
+        // Render texture to monitor window & HMD
 		monitorWindow.render(vr.getLeftResolveId());
-
-        // Submit to HMD
 		vr.submitFrame();
-
-        // Swap
 		monitorWindow.swap();
     }
-
-    // Cleanup
-    cout << "exit!\n";
 
     return 0;
 }

@@ -14,6 +14,7 @@ public:
 	~SdlContext();
 
 	bool init();
+	const Uint8 *getState();
 
 	int getWidth();
 	int getHeight();

@@ -59,10 +59,10 @@ bool SdlTargetWindow::init() {
 	);
 
 	vector<TexturedVertex> verts;
-	verts.push_back(TexturedVertex(Vector2(-1, -1), Vector2(0, 1)));
-	verts.push_back(TexturedVertex(Vector2(1, -1), Vector2(1, 1)));
-	verts.push_back(TexturedVertex(Vector2(-1, 1), Vector2(0, 0)));
-	verts.push_back(TexturedVertex(Vector2(1, 1), Vector2(1, 0)));
+	verts.push_back(TexturedVertex(Vector2(-1, -1), Vector2(0, 0)));
+	verts.push_back(TexturedVertex(Vector2(1, -1), Vector2(1, 0)));
+	verts.push_back(TexturedVertex(Vector2(-1, 1), Vector2(0, 1)));
+	verts.push_back(TexturedVertex(Vector2(1, 1), Vector2(1, 1)));
 
 	GLushort indices[] = { 0, 1, 3, 0, 3, 2 };
 	windowQuadIdxSize = _countof(indices);

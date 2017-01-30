@@ -26,8 +26,8 @@ public:
 
 	bool init();
 	void getState(VrInputState& state);
-	void render(Renderable& renderable, Matrix4 proj);
-	void renderPerspective(EVREye eye, Renderable& renderable, Matrix4 proj);
+	void render(vector<Renderable*>& renderable, Matrix4 proj);
+	void renderPerspective(EVREye eye, vector<Renderable*>& renderable, Matrix4 proj);
 	void submitFrame();
 
 	uint32_t getWidth();
