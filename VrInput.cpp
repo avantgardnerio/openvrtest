@@ -105,13 +105,13 @@ void recursive_render(const struct aiScene *sc, const struct aiNode* nd, float s
 			glEnd();
 		}
 	}
+	glPopMatrix();
 
 	// draw all children
 	for (n = 0; n < nd->mNumChildren; ++n) {
 		recursive_render(sc, nd->mChildren[n], scale, eyeProj, headInverse, worldTrans);
 	}
 
-	glPopMatrix();
 }
 
 void drawAiScene(const aiScene* scene, Matrix4 eyeProj, Matrix4 headInverse, Matrix4 worldTrans) {
