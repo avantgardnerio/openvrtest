@@ -7,16 +7,7 @@
 
 using namespace std;
 
-bool running = true;
-
-void sig_handler(int signum) {
-    running = false;
-    printf("Received signal %d\n", signum);
-}
-
 int main() {
-    signal(SIGINT, sig_handler);
-
     // Setup
 	SdlContext sdl;
 	SdlTargetWindow monitorWindow(571, 108, 777, 864); // TODO: fix hard coded values for 1080 monitor
@@ -39,15 +30,14 @@ int main() {
     // Main loop
 	VrInputState vrInputState;
     SDL_StartTextInput();
-    while (running) {
+    while (true) {
         // SDL input
 		const Uint8* state = sdl.getState();
 		if (state == NULL) {
-			running = false;
 			break;
 		}
 		if (state[SDLK_ESCAPE] || state[SDLK_q]) {
-			running = false;
+			break;
 		}
 
 		// VR input
@@ -63,7 +53,5 @@ int main() {
 		vr.submitFrame();
 		monitorWindow.swap();
     }
-
-    return 0;
 }
 
