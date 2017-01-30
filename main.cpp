@@ -1,4 +1,11 @@
 #include <signal.h>
+#include <fstream>
+
+#include "assimp/Importer.hpp"	//OO version Header!
+#include "assimp/postprocess.h"
+#include "assimp/scene.h"
+#include "assimp/DefaultLogger.hpp"
+#include "assimp/LogStream.hpp"
 
 #include "VrInput.h"
 #include "SdlContext.h"
@@ -7,6 +14,30 @@
 #include "Square.h"
 
 using namespace std;
+
+Assimp::Importer importer;
+const aiScene* scene = NULL;
+
+bool importModelFromFile(const std::string& pFile) {
+	// Check if file exists
+	std::ifstream fin(pFile.c_str());
+	if (!fin.fail()) {
+		fin.close();
+	} else {
+		printf("Error opening file");
+		return -1;
+	}
+
+	scene = importer.ReadFile(pFile, aiProcessPreset_TargetRealtime_Quality);
+
+	// If the import failed, report it
+	if (!scene)	{
+		printf(importer.GetErrorString());
+		return false;
+	}
+
+	return true;
+}
 
 int main() {
     // Setup
@@ -24,6 +55,9 @@ int main() {
 	leftController.init();
 	rightController.init();
 	square.init();
+
+	string modelpath = std::string("../../../../../assets/duck.dae");
+	if (!importModelFromFile(modelpath)) return 0;
 
 	// Build scene
 	vector<Renderable*> scene;
