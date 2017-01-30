@@ -1,5 +1,13 @@
 #include "VrInput.h"
 
+#include <fstream>
+
+#include "assimp/Importer.hpp"	//OO version Header!
+#include "assimp/postprocess.h"
+#include "assimp/scene.h"
+#include "assimp/DefaultLogger.hpp"
+#include "assimp/LogStream.hpp"
+
 VrInput::VrInput() {
 	error = VRInitError_None;
 	BTN_GRIP = ButtonMaskFromId(k_EButton_Grip);
@@ -7,6 +15,107 @@ VrInput::VrInput() {
 
 VrInput::~VrInput() {
 	VR_Shutdown();
+}
+
+Assimp::Importer importer;
+const aiScene* theScene = NULL;
+
+void importModelFromFile(const std::string& pFile) {
+	// Check if file exists
+	std::ifstream fin(pFile.c_str());
+	if (!fin.fail()) {
+		fin.close();
+	}
+	else {
+		throw exception("Error opening file");
+	}
+
+	theScene = importer.ReadFile(pFile, aiProcessPreset_TargetRealtime_Quality);
+
+	// If the import failed, report it
+	if (!theScene) {
+		throw exception(importer.GetErrorString());
+	}
+}
+
+void Color4f(const aiColor4D *color) {
+	glColor4f(color->r, color->g, color->b, color->a);
+}
+
+void recursive_render(const struct aiScene *sc, const struct aiNode* nd, float scale, Matrix4 eyeProj, Matrix4 headInverse, Matrix4 worldTrans) {
+	unsigned int i;
+	unsigned int n = 0, t;
+	aiMatrix4x4 m = nd->mTransformation;
+
+	aiMatrix4x4 m2;
+	aiMatrix4x4::Scaling(aiVector3D(scale, scale, scale), m2);
+	m = m * m2;
+
+	// update transform
+	m.Transpose();
+	glPushMatrix();
+	glMultMatrixf((eyeProj * headInverse * worldTrans).get());
+
+	// draw all meshes assigned to this node
+	for (; n < nd->mNumMeshes; ++n) {
+		const struct aiMesh* mesh = theScene->mMeshes[nd->mMeshes[n]];
+
+		//apply_material(sc->mMaterials[mesh->mMaterialIndex]); // TODO: Materials
+
+		//if (mesh->mNormals == NULL) {
+			glDisable(GL_LIGHTING);
+		/*} else {
+			glEnable(GL_LIGHTING);
+		}*/
+
+		//if (mesh->mColors[0] != NULL) {
+			glEnable(GL_COLOR_MATERIAL);
+		/*} else {
+			glDisable(GL_COLOR_MATERIAL);
+		}*/
+
+		for (t = 0; t < mesh->mNumFaces; ++t) {
+			const struct aiFace* face = &mesh->mFaces[t];
+			GLenum face_mode;
+
+			switch (face->mNumIndices)
+			{
+			case 1: face_mode = GL_POINTS; break;
+			case 2: face_mode = GL_LINES; break;
+			case 3: face_mode = GL_TRIANGLES; break;
+			default: face_mode = GL_POLYGON; break;
+			}
+
+			glBegin(face_mode);
+
+			for (i = 0; i < face->mNumIndices; i++) {	// go through all vertices in face
+				int vertexIndex = face->mIndices[i];	// get group index for current index
+				if (mesh->mColors[0] != NULL)
+					Color4f(&mesh->mColors[0][vertexIndex]);
+				if (mesh->mNormals != NULL)
+
+					if (mesh->HasTextureCoords(0))		//HasTextureCoords(texture_coordinates_set)
+					{
+						glTexCoord2f(mesh->mTextureCoords[0][vertexIndex].x, 1 - mesh->mTextureCoords[0][vertexIndex].y); //mTextureCoords[channel][vertex]
+					}
+
+				glNormal3fv(&mesh->mNormals[vertexIndex].x);
+				glVertex3fv(&mesh->mVertices[vertexIndex].x);
+			}
+			glEnd();
+		}
+	}
+
+	// draw all children
+	for (n = 0; n < nd->mNumChildren; ++n) {
+		recursive_render(sc, nd->mChildren[n], scale, eyeProj, headInverse, worldTrans);
+	}
+
+	glPopMatrix();
+}
+
+void drawAiScene(const aiScene* scene, Matrix4 eyeProj, Matrix4 headInverse, Matrix4 worldTrans) {
+	recursive_render(scene, scene->mRootNode, 4, eyeProj, headInverse, worldTrans);
 }
 
 void VrInput::init() {
@@ -23,6 +132,9 @@ void VrInput::init() {
 
 	GlContext::createFrameBuffer(width, height, eyeFramebuffer[Eye_Left]);
 	GlContext::createFrameBuffer(width, height, eyeFramebuffer[Eye_Right]);
+
+	string modelpath = std::string("..\\..\\..\\..\\assets\\duck.dae");
+	importModelFromFile(modelpath);
 }
 
 void VrInput::getState(VrInputState& state) {
@@ -77,6 +189,7 @@ void VrInput::renderPerspective(EVREye eye, vector<Renderable*>& scene, Matrix4 
 	for (Renderable* renderable : scene) {
 		renderable->render(eyeProj, headInverse, worldTrans);
 	}
+	drawAiScene(theScene, eyeProj, headInverse, worldTrans);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glDisable(GL_MULTISAMPLE);
