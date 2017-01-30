@@ -2,7 +2,6 @@
 
 VrInput::VrInput() {
 	error = VRInitError_None;
-	BTN_GRIP = ButtonMaskFromId(k_EButton_Grip);
 }
 
 VrInput::~VrInput() {

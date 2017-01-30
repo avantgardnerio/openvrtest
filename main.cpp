@@ -7,11 +7,13 @@
 #include "Controller.h"
 #include "Square.h"
 #include "AssImpObj.h"
+#include "NavigateCommand.h"
 
 using namespace std;
 
 int main() {
     // Setup
+	NavigateCommand navigateCmd;
 	SdlContext sdl;
 	SdlTargetWindow monitorWindow(571, 108, 777, 864); // TODO: fix hard coded values for 1080 monitor
 	VrInput vr;
@@ -36,14 +38,16 @@ int main() {
 	scene.push_back(&square);
 	scene.push_back(&duck);
 
-    // Main loop
+	// Initial state
 	Matrix4 worldTrans;
-	Vector3 gripLeft;
-	Vector3 gripRight;
-	Matrix4 gripWorld;
-	Matrix4 gripInverse;
 	VrInputState vrInputState;
 	VrInputState lastInputState;
+	vrInputState.leftControllerState.ulButtonPressed = 0L;
+	vrInputState.rightControllerState.ulButtonPressed = 0L;
+	lastInputState.leftControllerState.ulButtonPressed = 0L;
+	lastInputState.rightControllerState.ulButtonPressed = 0L;
+
+	// Main loop
 	SDL_StartTextInput();
     while (true) {
         // SDL input
@@ -58,47 +62,7 @@ int main() {
 		rightController.setPose(vrInputState.rightHandPose);
 
 		// Navigation
-		if (
-			(!(lastInputState.leftControllerState.ulButtonPressed & vr.BTN_GRIP) || !(lastInputState.rightControllerState.ulButtonPressed & vr.BTN_GRIP))
-			&& ((vrInputState.leftControllerState.ulButtonPressed & vr.BTN_GRIP) && (vrInputState.rightControllerState.ulButtonPressed & vr.BTN_GRIP))
-			) {
-			gripWorld = worldTrans;
-			gripInverse = gripWorld;
-			gripInverse.invert();
-			gripLeft = vrInputState.leftHandPose * Vector3(0, 0, 0);
-			gripRight = vrInputState.rightHandPose * Vector3(0, 0, 0);
-			gripLeft = gripInverse * gripLeft;
-			gripRight = gripInverse * gripRight;
-		}
-		if (
-			((lastInputState.leftControllerState.ulButtonPressed & vr.BTN_GRIP) && (lastInputState.rightControllerState.ulButtonPressed & vr.BTN_GRIP))
-			&& ((vrInputState.leftControllerState.ulButtonPressed & vr.BTN_GRIP) && (vrInputState.rightControllerState.ulButtonPressed & vr.BTN_GRIP))
-			) {
-			Vector3 gripCenter = (gripRight - gripLeft) / 2.0f + gripLeft;
-			Vector3 gripDir = gripRight - gripCenter;
-
-			Vector3 leftHand = vrInputState.leftHandPose * Vector3(0, 0, 0);
-			Vector3 rightHand = vrInputState.rightHandPose * Vector3(0, 0, 0);
-
-			Vector3 worldLeft = gripInverse * leftHand;
-			Vector3 worldRight = gripInverse * rightHand;
-			Vector3 worldCenter = (worldRight - worldLeft) / 2.0f + worldLeft;
-			Vector3 worldDir = worldRight - worldCenter;
-			Vector3 delta = worldCenter - gripCenter;
-			float deltaAng = atan2f(gripDir.z, gripDir.x) - atan2f(worldDir.z, worldDir.x);
-			float deltaDist = worldDir.length() / gripDir.length();
-
-			Matrix4 trans;
-
-			trans.translate(-gripCenter);
-			trans.rotateY(deltaAng * 180.0f / M_PI);
-			trans.scale(deltaDist);
-			trans.translate(gripCenter);
-
-			trans.translate(delta);
-
-			//worldTrans = gripWorld * trans;
-		}
+		navigateCmd.execute(vrInputState, lastInputState, worldTrans);
 
 		// Render each perspective to texture
 		vr.render(scene, vrInputState.headInverse, worldTrans);

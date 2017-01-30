@@ -15,6 +15,7 @@ set(SOURCE_FILES
 	Square.cpp 
 	VrInput.cpp
 	AssImpObj.cpp
+	NavigateCommand.cpp
 	)
 
 add_executable(openvrtest ${SOURCE_FILES})

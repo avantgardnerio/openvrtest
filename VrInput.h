@@ -20,6 +20,8 @@ struct VrInputState {
 	VRControllerState_t rightControllerState;
 };
 
+#define BTN_GRIP (1ull << k_EButton_Grip)
+
 class VrInput
 {
 public:
@@ -42,8 +44,6 @@ public:
 
 	Matrix4 getEyeProjLeft();
 	Matrix4 getEyeProjRight();
-
-	uint64_t BTN_GRIP;
 
 private:
 	TrackedDevicePose_t devicePose[k_unMaxTrackedDeviceCount];
