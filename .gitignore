@@ -6,3 +6,15 @@ cmake-build-debug/
 .cget/
 .cget-bin/
 build/
+
+# visual studio
+*.vcxproj*
+*.sln
+Win32/
+Debug/
+*.VC.*
+
+# cmake
+CMakeFiles/
+cmake_install.cmake
+CMakeCache.txt
