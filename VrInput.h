@@ -16,6 +16,8 @@ struct VrInputState {
 	Matrix4 headInverse;
 	Matrix4 leftHandPose;
 	Matrix4 rightHandPose;
+	VRControllerState_t leftControllerState;
+	VRControllerState_t rightControllerState;
 };
 
 class VrInput
@@ -26,8 +28,8 @@ public:
 
 	void init();
 	void getState(VrInputState& state);
-	void render(vector<Renderable*>& renderable, Matrix4 proj);
-	void renderPerspective(EVREye eye, vector<Renderable*>& renderable, Matrix4 proj);
+	void render(vector<Renderable*>& renderable, Matrix4 headInverse, Matrix4 worldTrans);
+	void renderPerspective(EVREye eye, vector<Renderable*>& renderable, Matrix4 eyeProj, Matrix4 headInverse, Matrix4 worldTrans);
 	void submitFrame();
 
 	uint32_t getWidth();
@@ -40,6 +42,8 @@ public:
 
 	Matrix4 getEyeProjLeft();
 	Matrix4 getEyeProjRight();
+
+	uint64_t BTN_GRIP;
 
 private:
 	TrackedDevicePose_t devicePose[k_unMaxTrackedDeviceCount];

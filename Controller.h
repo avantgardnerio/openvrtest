@@ -15,7 +15,7 @@ public:
 	~Controller();
 
 	void init();
-	void render(Matrix4 proj);
+	void render(Matrix4 eyeProj, Matrix4 headInverse, Matrix4 worldTrans);
 	void setPose(Matrix4 pose);
 
 private:

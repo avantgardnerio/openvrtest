@@ -97,9 +97,9 @@ void Square::init() {
 	}
 }
 
-void Square::render(Matrix4 proj) {
+void Square::render(Matrix4 eyeProj, Matrix4 headInverse, Matrix4 worldTrans) {
 	glUseProgram(shader);
-	glUniformMatrix4fv(shaderMatrix, 1, GL_FALSE, (proj).get());
+	glUniformMatrix4fv(shaderMatrix, 1, GL_FALSE, (eyeProj * headInverse * worldTrans).get());
 	glBindVertexArray(vertexArray);
 	glDrawArrays(GL_LINE_LOOP, 0, vertexCount);
 	glBindVertexArray(0);

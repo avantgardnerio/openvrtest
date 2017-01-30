@@ -90,9 +90,9 @@ void Controller::setPose(Matrix4 pose) {
 	this->pose = pose;
 }
 
-void Controller::render(Matrix4 proj) {
+void Controller::render(Matrix4 eyeProj, Matrix4 headInverse, Matrix4 worldTrans) {
 	glUseProgram(shader);
-	glUniformMatrix4fv(shaderMatrix, 1, GL_FALSE, (proj * pose).get());
+	glUniformMatrix4fv(shaderMatrix, 1, GL_FALSE, (eyeProj * headInverse * pose).get());
 	glBindVertexArray(vertexArray);
 	glDrawArrays(GL_LINES, 0, vertexCount);
 	glBindVertexArray(0);

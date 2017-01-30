@@ -2,6 +2,7 @@
 
 VrInput::VrInput() {
 	error = VRInitError_None;
+	BTN_GRIP = ButtonMaskFromId(k_EButton_Grip);
 }
 
 VrInput::~VrInput() {
@@ -42,11 +43,15 @@ void VrInput::getState(VrInputState& state) {
 		Matrix4 poseMat = hmdMatToMatrix4(pose.mDeviceToAbsoluteTracking);
 		ETrackedDeviceClass clazz = hmd->GetTrackedDeviceClass(deviceIdx);
 		ETrackedControllerRole role = hmd->GetControllerRoleForTrackedDeviceIndex(deviceIdx);
+		VRControllerState_t controllerState;
+		hmd->GetControllerState(deviceIdx, &controllerState, sizeof(controllerState));
 		if (role == TrackedControllerRole_RightHand) {
 			state.rightHandPose = poseMat;
+			state.leftControllerState = controllerState;
 		}
 		if (role == TrackedControllerRole_LeftHand) {
 			state.leftHandPose = poseMat;
+			state.rightControllerState = controllerState;
 		}
 		if (clazz == TrackedDeviceClass_HMD) {
 			state.headPose = poseMat;
@@ -56,13 +61,13 @@ void VrInput::getState(VrInputState& state) {
 	}
 }
 
-void VrInput::render(vector<Renderable*>& scene, Matrix4 proj) {
+void VrInput::render(vector<Renderable*>& scene, Matrix4 headInverse, Matrix4 worldTrans) {
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-	renderPerspective(Eye_Left, scene, getEyeProjLeft() * proj);
-	renderPerspective(Eye_Right, scene, getEyeProjRight() * proj);
+	renderPerspective(Eye_Left, scene, getEyeProjLeft(), headInverse, worldTrans);
+	renderPerspective(Eye_Right, scene, getEyeProjRight(), headInverse, worldTrans);
 }
 
-void VrInput::renderPerspective(EVREye eye, vector<Renderable*>& scene, Matrix4 proj) {
+void VrInput::renderPerspective(EVREye eye, vector<Renderable*>& scene, Matrix4 eyeProj, Matrix4 headInverse, Matrix4 worldTrans) {
 	glEnable(GL_MULTISAMPLE);
 	glBindFramebuffer(GL_FRAMEBUFFER, eyeFramebuffer[eye].renderTextureId);
 	glViewport(0, 0, width, height);
@@ -70,7 +75,7 @@ void VrInput::renderPerspective(EVREye eye, vector<Renderable*>& scene, Matrix4 
 	glEnable(GL_DEPTH_TEST);
 
 	for (Renderable* renderable : scene) {
-		renderable->render(proj);
+		renderable->render(eyeProj, headInverse, worldTrans);
 	}
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
