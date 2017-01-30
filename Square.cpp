@@ -1,15 +1,18 @@
-#include "Controller.h"
+#include "Square.h"
 
 using namespace std;
 
-Controller::Controller() {
+Square::Square() {
 	shader = 0;
 	shaderMatrix = 0;
 	vertexArray = 0;
 	vertexBuffer = 0;
 }
 
-void Controller::init() { 
+Square::~Square() {
+}
+
+void Square::init() {
 	if (shader == 0) { // TODO: Thread safety?
 		shader = GlContext::compileGlShader( // TODO: Shaders as resources
 			"ControllerShader",
@@ -39,20 +42,32 @@ void Controller::init() {
 		}
 
 		vector<float> floatAr;
-		Vector4 start = Vector4(0, 0, 0.0f, 1);
-		Vector4 end = Vector4(0, 0, -39.f, 1);
 		Vector3 color(1, 1, 1);
 
-		floatAr.push_back(start.x);
-		floatAr.push_back(start.y);
-		floatAr.push_back(start.z);
+		floatAr.push_back(0);
+		floatAr.push_back(0);
+		floatAr.push_back(0);
 		floatAr.push_back(color.x);
 		floatAr.push_back(color.y);
 		floatAr.push_back(color.z);
 
-		floatAr.push_back(end.x);
-		floatAr.push_back(end.y);
-		floatAr.push_back(end.z);
+		floatAr.push_back(1);
+		floatAr.push_back(0);
+		floatAr.push_back(0);
+		floatAr.push_back(color.x);
+		floatAr.push_back(color.y);
+		floatAr.push_back(color.z);
+
+		floatAr.push_back(1);
+		floatAr.push_back(0);
+		floatAr.push_back(1);
+		floatAr.push_back(color.x);
+		floatAr.push_back(color.y);
+		floatAr.push_back(color.z);
+
+		floatAr.push_back(0);
+		floatAr.push_back(0);
+		floatAr.push_back(1);
 		floatAr.push_back(color.x);
 		floatAr.push_back(color.y);
 		floatAr.push_back(color.z);
@@ -82,19 +97,14 @@ void Controller::init() {
 	}
 }
 
-Controller::~Controller() {
-	// TODO: cleanup
-}
-
-void Controller::setPose(Matrix4 pose) {
-	this->pose = pose;
-}
-
-void Controller::render(Matrix4 proj) {
+void Square::render(Matrix4 proj) {
 	glUseProgram(shader);
-	glUniformMatrix4fv(shaderMatrix, 1, GL_FALSE, (proj * pose).get());
+	glUniformMatrix4fv(shaderMatrix, 1, GL_FALSE, (proj).get());
 	glBindVertexArray(vertexArray);
-	glDrawArrays(GL_LINES, 0, vertexCount);
+	glDrawArrays(GL_LINE_LOOP, 0, vertexCount);
 	glBindVertexArray(0);
 	glUseProgram(0);
 }
+
+
+

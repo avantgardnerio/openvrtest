@@ -4,6 +4,7 @@
 #include "SdlContext.h"
 #include "SdlTargetWindow.h"
 #include "Controller.h"
+#include "Square.h"
 
 using namespace std;
 
@@ -14,6 +15,7 @@ int main() {
 	VrInput vr;
 	Controller leftController;
 	Controller rightController;
+	Square square;
 
 	// Init
 	sdl.init();
@@ -21,11 +23,13 @@ int main() {
 	vr.init();
 	leftController.init();
 	rightController.init();
+	square.init();
 
 	// Build scene
 	vector<Renderable*> scene;
 	scene.push_back(&rightController);
 	scene.push_back(&leftController);
+	scene.push_back(&square);
 
     // Main loop
 	VrInputState vrInputState;
