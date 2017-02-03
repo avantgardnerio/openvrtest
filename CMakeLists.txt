@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.6)
+message("-------" ${CMAKE_VS_PLATFORM_TOOLSET})
 project(openvrtest)
 
 include(package.cmake)
@@ -38,11 +39,6 @@ include_directories(
 		${assimp_INCLUDE_DIRS}
 )
 
-message("------------------------" ${OPENVR_LIBRARY})
-message("------------------------" ${GLEW_LIBRARY})
-message("------------------------" ${OPENGL_LIBRARIES})
-message("------------------------ assimp: " ${assimp_INCLUDE_DIRS})
-
 target_link_libraries(
         openvrtest
         ${OPENGL_LIBRARIES}
@@ -52,3 +48,19 @@ target_link_libraries(
         ${OPENVR_LIBRARY}
         ${CMAKE_DL_LIBS}
         )
+
+message("------------------------INCLUDE_DIRECTORIES")
+message("[")
+get_property(dirs DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY INCLUDE_DIRECTORIES)
+foreach(dir ${dirs})
+  message(STATUS "${dir},")
+endforeach()
+message("]")
+
+message("------------------------target_link_libraries")
+message("[")
+get_property(dirs DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY target_link_libraries)
+foreach(dir ${dirs})
+  message(STATUS "${dir},")
+endforeach()
+message("]")
