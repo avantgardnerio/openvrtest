@@ -26,7 +26,7 @@ public:
 	GlContext();
 	~GlContext();
 
-	static GLuint GlContext::compileGlShader(const char *pchShaderName, const char *pchVertexShader, const char *pchFragmentShader);
-	static bool GlContext::createFrameBuffer(int width, int height, FramebufferDesc &framebufferDesc);
+	static GLuint compileGlShader(const char *pchShaderName, const char *pchVertexShader, const char *pchFragmentShader);
+	static bool createFrameBuffer(int width, int height, FramebufferDesc &framebufferDesc);
 };
 

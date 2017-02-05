@@ -1,4 +1,5 @@
 #include "SdlTargetWindow.h"
+#include <stdexcept>
 
 using namespace std;
 
@@ -17,18 +18,18 @@ void SdlTargetWindow::init() {
 	Uint32 unWindowFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN;
 	monitorWindow = SDL_CreateWindow("hellovr", left, top, width, height, unWindowFlags);
 	if (monitorWindow == NULL) {
-		throw new exception(SDL_GetError());
+		throw new runtime_error(SDL_GetError());
 	}
 	monitorGlContext = SDL_GL_CreateContext(monitorWindow);
 	if (monitorGlContext == NULL) {
-		throw new exception(SDL_GetError());
+		throw new runtime_error(SDL_GetError());
 	}
 
 	// HACK: Glew needs to be inited after creating the window and before compiling the shader. Find a better place for this.
 	glewExperimental = GL_TRUE;
 	GLenum glewError = glewInit();
 	if (glewError != GLEW_OK) {
-		throw new exception((const char *)glewGetErrorString(glewError));
+		throw new runtime_error((const char *)glewGetErrorString(glewError));
 	}
 	glGetError();
 
@@ -62,7 +63,7 @@ void SdlTargetWindow::init() {
 	verts.push_back(TexturedVertex(Vector2(1, 1), Vector2(1, 1)));
 
 	GLushort indices[] = { 0, 1, 3, 0, 3, 2 };
-	windowQuadIdxSize = _countof(indices);
+	windowQuadIdxSize = std::extent< decltype( indices ) >::value;
 
 	glGenVertexArrays(1, &windowQuadVertAr);
 	glBindVertexArray(windowQuadVertAr);

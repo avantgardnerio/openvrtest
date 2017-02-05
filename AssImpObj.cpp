@@ -12,12 +12,12 @@ void AssImpObj::init() {
 	if (!file.fail()) {
 		file.close();
 	} else {
-		throw exception("Error opening file");
+		throw runtime_error("Error opening file");
 	}
 
 	model = importer.ReadFile(filename, aiProcessPreset_TargetRealtime_Quality);
 	if (!model) {
-		throw exception(importer.GetErrorString());
+		throw runtime_error(importer.GetErrorString());
 	}
 }
 

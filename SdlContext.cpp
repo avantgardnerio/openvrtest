@@ -1,4 +1,6 @@
 #include "SdlContext.h"
+#include <climits>
+#include <stdexcept>
 
 using namespace std;
 
@@ -19,14 +21,14 @@ void SdlContext::init() {
 	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 0);
 
 	if (SDL_VideoInit(NULL) != 0) {
-		throw new exception(SDL_GetError());
+		throw new runtime_error(SDL_GetError());
 	}
 
 	SDL_DisplayMode current;
 	for (int i = 0; i < SDL_GetNumVideoDisplays(); ++i) {
 		int ret = SDL_GetCurrentDisplayMode(i, &current);
 		if (ret != 0) {
-			throw new exception(SDL_GetError());
+			throw new runtime_error(SDL_GetError());
 		} else {
 			width = min(current.w, width);
 			height = min(current.h, height);

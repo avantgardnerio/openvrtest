@@ -38,7 +38,7 @@ void Square::init() {
 		);
 		shaderMatrix = glGetUniformLocation(shader, "matrix");
 		if (shaderMatrix == -1) {
-			throw new exception("Unable to find matrix uniform in controller shader\n");
+			throw new runtime_error("Unable to find matrix uniform in controller shader\n");
 		}
 
 		vector<float> floatAr;
