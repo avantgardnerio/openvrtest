@@ -11,11 +11,11 @@ VrInput::~VrInput() {
 void VrInput::init() {
 	hmd = VR_Init(&error, VRApplication_Scene);
 	if (error != VRInitError_None) {
-		throw new exception(VR_GetVRInitErrorAsEnglishDescription(error));
+		throw new runtime_error(VR_GetVRInitErrorAsEnglishDescription(error));
 	}
 	hmd->GetRecommendedRenderTargetSize(&width, &height);
 	if (!VRCompositor()) {
-		throw new exception("Compositor initialization failed. See log file for details\n");
+		throw new runtime_error("Compositor initialization failed. See log file for details\n");
 	}
 	eyeProjLeft = getEyeMat(Eye_Left);
 	eyeProjRight = getEyeMat(Eye_Right);
