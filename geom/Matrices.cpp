@@ -23,7 +23,7 @@
 const float DEG2RAD = 3.141593f / 180;
 const float EPSILON = 0.00001f;
 
-
+using namespace std;
 
 ///////////////////////////////////////////////////////////////////////////////
 // transpose 2x2 matrix
@@ -53,9 +53,8 @@ float Matrix2::getDeterminant()
 Matrix2& Matrix2::invert()
 {
     float determinant = getDeterminant();
-    if(fabs(determinant) <= EPSILON)
-    {
-        return identity();
+    if(fabs(determinant) <= EPSILON) {
+        throw exception("Non invertable matrix!");
     }
 
     float tmp = m[0];   // copy the first element
@@ -117,9 +116,8 @@ Matrix3& Matrix3::invert()
 
     // check determinant if it is 0
     determinant = m[0] * tmp[0] + m[1] * tmp[3] + m[2] * tmp[6];
-    if(fabs(determinant) == 0) 
-    {
-        return identity(); // cannot inverse, make it idenety matrix
+    if(fabs(determinant) == 0) {
+        throw exception("Non invertable matrix!");
     }
 
     // divide by the determinant
@@ -310,9 +308,8 @@ Matrix4& Matrix4::invertProjective()
     //NOTE: this function assumes det(A) is already checked. if |A|=0 then,
     //      cannot use this function.
     float determinant = dcab[0] * dcab[3] - dcab[1] * dcab[2];
-    if(fabs(determinant) <= EPSILON)
-    {
-        return identity();
+    if(fabs(determinant) <= EPSILON) {
+        throw exception("Non invertable matrix!");
     }
 
     // compute D' and -D'
@@ -356,9 +353,8 @@ Matrix4& Matrix4::invertGeneral()
 
     // get determinant
     float determinant = m[0] * cofactor0 - m[1] * cofactor1 + m[2] * cofactor2 - m[3] * cofactor3;
-    if(fabs(determinant) <= EPSILON)
-    {
-        return identity();
+    if(fabs(determinant) <= EPSILON) {
+        throw exception("Non invertable matrix!");
     }
 
     // get rest of cofactors for adj(M)
