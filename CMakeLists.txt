@@ -9,6 +9,7 @@ set(CMAKE_CXX_STANDARD 11)
 set(SOURCE_FILES 
 	main.cpp 
 	geom/Matrices.cpp 
+	geom/Matrices.h
 	Controller.cpp 
 	GlContext.cpp 
 	SdlContext.cpp 

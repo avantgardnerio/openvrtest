@@ -170,6 +170,7 @@ public:
     Matrix4&    invertGeneral();                        // inverse of generic matrix
 
     // transform matrix
+    Matrix4&    translateRaw(const Vector4& v);
     Matrix4&    translate(float x, float y, float z);   // translation by (x,y,z)
     Matrix4&    translate(const Vector3& v);            //
     Matrix4&    rotate(float angle, const Vector3& axis); // rotate angle(degree) along the given axix

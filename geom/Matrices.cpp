@@ -117,7 +117,7 @@ Matrix3& Matrix3::invert()
 
     // check determinant if it is 0
     determinant = m[0] * tmp[0] + m[1] * tmp[3] + m[2] * tmp[6];
-    if(fabs(determinant) <= EPSILON)
+    if(fabs(determinant) == 0) 
     {
         return identity(); // cannot inverse, make it idenety matrix
     }
@@ -433,6 +433,13 @@ float Matrix4::getCofactor(float m0, float m1, float m2,
 }
 
 
+Matrix4& Matrix4::translateRaw(const Vector4& v)
+{
+    m[12] += v.x;
+    m[13] += v.y;
+    m[14] += v.z;
+    return *this;
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 // translate this matrix by (x, y, z)

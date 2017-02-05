@@ -10,8 +10,8 @@ public:
 	void execute(VrInputState& currentInputState, VrInputState& lastInputState, Matrix4& worldTrans);
 
 private:
-	Vector3 initialLeftHandPos;
-	Vector3 initialRightHandPos;
+	Vector4 initialLeftHandPos;
+	Vector4 initialRightHandPos;
 	Matrix4 initialWorldTrans;
 	Matrix4 initialWorldInverse;
 
