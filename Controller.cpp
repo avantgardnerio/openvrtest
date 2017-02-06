@@ -2,7 +2,9 @@
 
 using namespace std;
 
-Controller::Controller() {
+Controller::Controller(Vector3 color) {
+	this->color = color;
+
 	shader = 0;
 	shaderMatrix = 0;
 	vertexArray = 0;
@@ -41,7 +43,6 @@ void Controller::init() {
 		vector<float> floatAr;
 		Vector4 start = Vector4(0, 0, 0.0f, 1);
 		Vector4 end = Vector4(0, 0, -39.f, 1);
-		Vector3 color(1, 1, 1);
 
 		floatAr.push_back(start.x);
 		floatAr.push_back(start.y);

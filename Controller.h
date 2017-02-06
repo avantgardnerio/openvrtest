@@ -11,7 +11,7 @@
 class Controller : public Renderable
 {
 public:
-	Controller();
+	Controller(Vector3 color);
 	~Controller();
 
 	void init();
@@ -20,6 +20,7 @@ public:
 
 private:
 	Matrix4 pose;
+	Vector3 color;
 
 	// TODO: static
 	GLuint shader;

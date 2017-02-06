@@ -17,8 +17,8 @@ int main() {
 	SdlContext sdl;
 	SdlTargetWindow monitorWindow(571, 108, 777, 864); // TODO: fix hard coded values for 1080 monitor
 	VrInput vr;
-	Controller leftController;
-	Controller rightController;
+	Controller leftController(Vector3(1, 0, 0));
+	Controller rightController(Vector3(0, 0, 1));
 	Square square;
 	AssImpObj duck("..\\..\\..\\..\\assets\\duck.dae");
 
