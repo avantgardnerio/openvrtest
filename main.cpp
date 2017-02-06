@@ -2,6 +2,7 @@
 #include <fstream>
 
 #include <GL/glew.h>
+
 #include <nanogui/formhelper.h>
 #include <nanogui/nanogui.h>
 
@@ -14,9 +15,13 @@
 #include "NavigateCommand.h"
 
 using namespace std;
+using namespace nanogui;
 
 int main() {
-	FormHelper *gui = new FormHelper(screen);
+	nanogui::init();
+	
+	FormHelper *gui;
+		/*= new FormHelper(screen);
 	ref<Window> window = gui->addWindow(Eigen::Vector2i(10, 10), "Form helper example");
 	gui->addGroup("Basic types");
 	gui->addVariable("bool", bvar);
@@ -34,11 +39,11 @@ int main() {
 
 	gui->addGroup("Other widgets");
 	gui->addButton("A button", [](){ std::cout << "Button pressed." << std::endl; });
-
+	
 	screen->setVisible(true);
 	screen->performLayout();
 	window->center();
-
+	*/
     // Setup
 	NavigateCommand navigateCmd;
 	SdlContext sdl;

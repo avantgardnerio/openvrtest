@@ -38,6 +38,7 @@ include_directories(
         ${SDL2_INCLUDE_DIR}
         ${OPENVR_INCLUDE_DIR}
 		${assimp_INCLUDE_DIRS}
+		${NANOGUI_INCLUDE_DIRS}
 )
 
 target_link_libraries(
@@ -48,9 +49,10 @@ target_link_libraries(
         SDL2::SDL2
         ${OPENVR_LIBRARY}
         ${CMAKE_DL_LIBS}
+		NanoGUI::NanoGUI 
         )
 
-message("------------------------INCLUDE_DIRECTORIES")
+message("------------------------INCLUDE_DIRECTORIES ${NANOGUI_INCLUDE_DIRS}")
 message("[")
 get_property(dirs DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY INCLUDE_DIRECTORIES)
 foreach(dir ${dirs})
