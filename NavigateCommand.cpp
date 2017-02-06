@@ -58,7 +58,7 @@ void NavigateCommand::execute(VrInputState& vrInputState, VrInputState& lastInpu
 		trans.translateRaw(gripCenter);
 
 		trans.translateRaw(delta);
-		cout << "delta=" << delta << "\r\n";
+		//cout << "delta=" << delta << "\r\n";
 
 		worldTrans = initialWorldTrans * trans;
 	}
