@@ -49,7 +49,6 @@ target_link_libraries(
         SDL2::SDL2
         ${OPENVR_LIBRARY}
         ${CMAKE_DL_LIBS}
-		NanoGUI::NanoGUI 
         )
 
 message("------------------------INCLUDE_DIRECTORIES ${NANOGUI_INCLUDE_DIRS}")
