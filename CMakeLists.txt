@@ -37,8 +37,9 @@ include_directories(
         ${GLEW_INCLUDE_DIR}
         ${SDL2_INCLUDE_DIR}
         ${OPENVR_INCLUDE_DIR}
-		${assimp_INCLUDE_DIRS}
-		${NANOGUI_INCLUDE_DIRS}
+        ${assimp_INCLUDE_DIRS}
+        ${NANOGUI_INCLUDE_DIRS}
+        ${expat_INCLUDE_DIRS}
 )
 
 target_link_libraries(
